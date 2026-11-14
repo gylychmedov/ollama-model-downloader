@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ollama
+      POSTGRES_PASSWORD: ollama
+      POSTGRES_DB: downloader
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5470}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ollama -d downloader"]
+      interval: 3s
+      retries: 20
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgres://ollama:ollama@db:5432/downloader?sslmode=disable
+      OLLAMA_MODELS_DIR: /ollama-models
+      ADDR: ":8080"
+      DOWNLOAD_CONNECTIONS: ${DOWNLOAD_CONNECTIONS:-4}
+    volumes:
+      - ${OLLAMA_MODELS_DIR:-~/.ollama/models}:/ollama-models
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-8470}:8080"
+    stop_grace_period: 15s
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    ports:
+      - "${WEB_PORT:-3470}:80"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
