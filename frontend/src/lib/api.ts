@@ -77,6 +77,7 @@ export const api = {
   pause: (id: number) => request<void>(`/downloads/${id}/pause`, { method: "POST" }),
   resume: (id: number) => request<void>(`/downloads/${id}/resume`, { method: "POST" }),
   install: (id: number) => request<void>(`/downloads/${id}/install`, { method: "POST" }),
+  reveal: (id: number) => request<void>(`/downloads/${id}/reveal`, { method: "POST" }),
   remove: (id: number) => request<void>(`/downloads/${id}`, { method: "DELETE" }),
 };
 

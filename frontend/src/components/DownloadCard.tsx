@@ -4,7 +4,7 @@ import { formatBytes, formatDuration } from "../lib/format";
 import { useDownloadActions } from "../lib/hooks";
 import ProgressBar from "./ProgressBar";
 import { Card, ModelAvatar } from "./ui";
-import { IconAlert, IconBox, IconPause, IconPlay, IconRefresh, IconTerminal, IconTrash } from "./icons";
+import { IconAlert, IconBox, IconFolder, IconPause, IconPlay, IconRefresh, IconTerminal, IconTrash } from "./icons";
 
 const statusStyle: Record<string, { cls: string; dot: string }> = {
   downloading: { cls: "bg-sky-500/10 text-sky-300 ring-sky-500/20", dot: "bg-sky-400 animate-pulse" },
@@ -25,6 +25,8 @@ function StatusBadge({ label }: { label: string }) {
     </span>
   );
 }
+
+const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform || navigator.userAgent);
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
@@ -63,6 +65,17 @@ export default function DownloadCard({ d, compact }: { d: Download; compact?: bo
       {d.status === "completed" && (
         <button disabled={busy} onClick={() => a.install.mutate(d.id)} className={`${btn} bg-gradient-to-r from-emerald-400 to-teal-500 text-zinc-950 shadow-lg shadow-emerald-500/25 hover:brightness-110`}>
           <IconBox /> Install to Ollama
+        </button>
+      )}
+      {d.status !== "installing" && (
+        <button
+          disabled={a.reveal.isPending}
+          title={isMac ? "Show in Finder" : "Show in folder"}
+          onClick={() => a.reveal.mutate(d.id)}
+          className={`${btn} ${compact ? "px-2.5" : ""} border border-white/10 bg-white/5 hover:bg-white/10`}
+        >
+          <IconFolder />
+          {!compact && (isMac ? "Show in Finder" : "Show in folder")}
         </button>
       )}
       {d.status !== "installing" && !compact && (

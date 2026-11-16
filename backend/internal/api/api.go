@@ -1,11 +1,15 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -14,6 +18,7 @@ import (
 	"github.com/dagdan/ai-model-downloader/internal/installer"
 	"github.com/dagdan/ai-model-downloader/internal/library"
 	"github.com/dagdan/ai-model-downloader/internal/registry"
+	"github.com/dagdan/ai-model-downloader/internal/reveal"
 	"github.com/dagdan/ai-model-downloader/internal/store"
 )
 
@@ -43,6 +48,7 @@ func New(cfg config.Config, s *store.Store, lib *library.Client, reg *registry.C
 	mux.HandleFunc("POST /api/downloads/{id}/pause", srv.action(m.Pause))
 	mux.HandleFunc("POST /api/downloads/{id}/resume", srv.action(m.Resume))
 	mux.HandleFunc("POST /api/downloads/{id}/install", srv.action(m.Install))
+	mux.HandleFunc("POST /api/downloads/{id}/reveal", srv.action(srv.reveal))
 	mux.HandleFunc("DELETE /api/downloads/{id}", srv.action(m.Delete))
 	return withCORS(mux)
 }
@@ -134,6 +140,34 @@ func (s *Server) action(fn func(context.Context, int64) error) http.HandlerFunc 
 	}
 }
 
+func (s *Server) reveal(ctx context.Context, id int64) error {
+	rel, err := s.manager.FilesPath(ctx, id)
+	if err != nil {
+		return err
+	}
+	if s.cfg.RevealURL == "" {
+		return reveal.Open(filepath.Join(s.cfg.ModelsDir, rel))
+	}
+	body, _ := json.Marshal(map[string]string{"path": filepath.ToSlash(rel)})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(s.cfg.RevealURL, "/")+"/reveal", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("%w: reveal helper is not running on the host (re-run ./start.sh)", errHelper)
+	}
+	defer res.Body.Close()
+	if res.StatusCode >= 300 {
+		msg, _ := io.ReadAll(io.LimitReader(res.Body, 512))
+		return fmt.Errorf("%w: %s", errHelper, strings.TrimSpace(string(msg)))
+	}
+	return nil
+}
+
+var errHelper = errors.New("show in folder failed")
+
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -156,6 +190,8 @@ func statusFor(err error) int {
 		return 404
 	case errors.Is(err, downloader.ErrBadState):
 		return 409
+	case errors.Is(err, errHelper):
+		return http.StatusBadGateway
 	}
 	return 500
 }

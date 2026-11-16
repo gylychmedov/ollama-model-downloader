@@ -14,6 +14,8 @@ type Config struct {
 	Connections  int
 	OllamaWebURL string
 	RegistryURL  string
+	// RevealURL is the host reveal-helper; empty means open the file manager directly.
+	RevealURL string
 }
 
 func Load() Config {
@@ -31,6 +33,7 @@ func Load() Config {
 		Connections:  conns,
 		OllamaWebURL: env("OLLAMA_WEB_URL", "https://ollama.com"),
 		RegistryURL:  env("OLLAMA_REGISTRY_URL", "https://registry.ollama.ai"),
+		RevealURL:    os.Getenv("REVEAL_URL"),
 	}
 }
 

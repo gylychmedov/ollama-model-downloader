@@ -24,8 +24,11 @@ open http://localhost:3470
 | `WEB_PORT` | `3470` | Frontend port |
 | `API_PORT` | `8470` | Backend port |
 | `DB_PORT` | `5470` | Postgres port |
+| `REVEAL_PORT` | `8471` | Host reveal helper port (loopback only) |
 
 Partial files are stored in `<models dir>/.downloader-staging/<id>/`. Because this is on the same disk as Ollama's store, installing is an instant rename rather than a copy.
+
+**Show in Finder** opens the staging folder, or after install selects the model's manifest. The backend runs in Docker and can't open Finder itself, so `start.sh` builds and starts a small host process (`backend/cmd/reveal-helper`) on `127.0.0.1:$REVEAL_PORT`. The helper only opens paths inside the models dir. When you run the backend natively without `REVEAL_URL`, it opens the file manager directly.
 
 ## Development
 
@@ -44,5 +47,5 @@ cd frontend && npm install && npm run dev  # :3471, proxies /api to :8470
 | GET | `/api/installed` | Models installed in Ollama |
 | GET | `/api/downloads` | Downloads with live speed and retries |
 | POST | `/api/downloads` | `{"model":"bonsai-2","tag":"27b"}` |
-| POST | `/api/downloads/{id}/pause\|resume\|install` | |
+| POST | `/api/downloads/{id}/pause\|resume\|install\|reveal` | |
 | DELETE | `/api/downloads/{id}` | Cancel and delete staged data |

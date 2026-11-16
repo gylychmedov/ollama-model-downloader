@@ -184,6 +184,25 @@ func (m *Manager) Delete(ctx context.Context, id int64) error {
 	return m.store.Delete(ctx, id)
 }
 
+// FilesPath returns the on-disk location of a download's files, relative to the
+// models dir: the staging folder before install, the manifest file after.
+func (m *Manager) FilesPath(ctx context.Context, id int64) (string, error) {
+	d, err := m.store.Get(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	var p string
+	if d.Status == store.StatusInstalled {
+		p = filepath.Join(m.cfg.ModelsDir, "manifests", m.reg.Host(), filepath.FromSlash(d.Model), d.Tag)
+	} else {
+		p = m.stagingDir(id)
+	}
+	if _, err := os.Stat(p); err != nil {
+		return "", fmt.Errorf("%w: files not found on disk", ErrBadState)
+	}
+	return filepath.Rel(m.cfg.ModelsDir, p)
+}
+
 func (m *Manager) Install(ctx context.Context, id int64) error {
 	d, err := m.store.Get(ctx, id)
 	if err != nil {

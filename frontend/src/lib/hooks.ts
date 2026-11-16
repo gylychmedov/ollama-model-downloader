@@ -27,6 +27,7 @@ export function useDownloadActions() {
     pause: useMutation({ mutationFn: api.pause, ...opts }),
     resume: useMutation({ mutationFn: api.resume, ...opts }),
     install: useMutation({ mutationFn: api.install, ...opts }),
+    reveal: useMutation({ mutationFn: api.reveal, onError: (e) => alert(e.message) }),
     remove: useMutation({ mutationFn: api.remove, ...opts }),
   };
 }

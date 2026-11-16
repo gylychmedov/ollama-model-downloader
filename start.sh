@@ -32,6 +32,7 @@ export DOWNLOAD_CONNECTIONS="${DOWNLOAD_CONNECTIONS:-4}"
 export WEB_PORT="${WEB_PORT:-3470}"
 export API_PORT="${API_PORT:-8470}"
 export DB_PORT="${DB_PORT:-5470}"
+export REVEAL_PORT="${REVEAL_PORT:-8471}"
 
 # --- Docker ---
 command -v docker >/dev/null || install_brew_package docker --cask docker
@@ -48,8 +49,10 @@ mkdir -p "$OLLAMA_MODELS_DIR"
 info "Ollama models dir: $OLLAMA_MODELS_DIR"
 
 # --- Ports ---
-for port in "$WEB_PORT" "$API_PORT" "$DB_PORT"; do
-  if lsof -iTCP:"$port" -sTCP:LISTEN -t >/dev/null 2>&1 && ! docker compose ps --format '{{.Ports}}' 2>/dev/null | grep -q ":$port->"; then
+OUR_PORTS="$(docker compose ps --format json 2>/dev/null | tr -d ' ' || true)"
+for port in "$WEB_PORT" "$API_PORT" "$DB_PORT" "$REVEAL_PORT"; do
+  [[ "$port" == "$REVEAL_PORT" && -f backend/bin/reveal-helper.pid ]] && continue
+  if lsof -iTCP:"$port" -sTCP:LISTEN -t >/dev/null 2>&1 && [[ "$OUR_PORTS" != *"\"PublishedPort\":$port,"* ]]; then
     fail "Port $port is already in use by another process. Set a different one in .env (WEB_PORT / API_PORT / DB_PORT)."
   fi
 done
@@ -58,6 +61,25 @@ done
 if [[ -n "$(docker compose ps -q 2>/dev/null)" ]]; then
   info "Stopping running containers (downloads resume automatically)..."
   docker compose down --remove-orphans
+fi
+
+# --- Reveal helper (host process so "Show in folder" can open Finder) ---
+HELPER_BIN="$ROOT_DIR/backend/bin/reveal-helper"
+HELPER_PID="$ROOT_DIR/backend/bin/reveal-helper.pid"
+if [[ -f "$HELPER_PID" ]]; then
+  kill "$(cat "$HELPER_PID")" 2>/dev/null || true
+  rm -f "$HELPER_PID"
+fi
+info "Building reveal helper..."
+mkdir -p "$ROOT_DIR/backend/bin"
+case "$(uname -m)" in arm64|aarch64) GOARCH=arm64 ;; *) GOARCH=amd64 ;; esac
+if docker run --rm -v "$ROOT_DIR/backend":/src -w /src \
+    -e CGO_ENABLED=0 -e GOOS="$(uname -s | tr '[:upper:]' '[:lower:]')" -e GOARCH="$GOARCH" \
+    golang:1.26-alpine go build -trimpath -o bin/reveal-helper ./cmd/reveal-helper; then
+  nohup "$HELPER_BIN" >"$ROOT_DIR/backend/bin/reveal-helper.log" 2>&1 &
+  echo $! >"$HELPER_PID"
+else
+  warn "Could not build the reveal helper. 'Show in folder' will not work."
 fi
 
 info "Building containers..."
@@ -95,4 +117,4 @@ if [[ -n "$LAN_IP" ]]; then
 fi
 echo
 echo "   Logs:  docker compose logs -f"
-echo "   Stop:  docker compose down"
+echo "   Stop:  docker compose down && kill \$(cat backend/bin/reveal-helper.pid)"
