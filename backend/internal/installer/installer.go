@@ -1,6 +1,7 @@
 package installer
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -9,7 +10,9 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"time"
 
+	"github.com/dagdan/ai-model-downloader/internal/registry"
 	"github.com/dagdan/ai-model-downloader/internal/store"
 )
 
@@ -19,7 +22,8 @@ func BlobFileName(digest string) string {
 
 func BlobExists(modelsDir, digest string, size int64) bool {
 	fi, err := os.Stat(filepath.Join(modelsDir, "blobs", BlobFileName(digest)))
-	return err == nil && fi.Size() == size
+	// >= because manifests can understate a blob's size; files in the store are complete.
+	return err == nil && fi.Size() >= size
 }
 
 func Install(modelsDir, stagingDir, host string, d *store.Download) error {
@@ -33,19 +37,58 @@ func Install(modelsDir, stagingDir, host string, d *store.Download) error {
 		}
 		src := filepath.Join(stagingDir, BlobFileName(b.Digest))
 		dst := filepath.Join(blobsDir, BlobFileName(b.Digest))
-		if err := moveFile(src, dst); err != nil {
+		if err := MoveFile(src, dst); err != nil {
 			return fmt.Errorf("install blob %s: %w", b.Digest, err)
 		}
 	}
-	manifestPath := filepath.Join(modelsDir, "manifests", host, filepath.FromSlash(d.Model), d.Tag)
-	if err := os.MkdirAll(filepath.Dir(manifestPath), 0o755); err != nil {
+	return WriteManifest(ManifestPath(modelsDir, host, d.Model, d.Tag), []byte(d.Manifest))
+}
+
+func ManifestPath(modelsDir, host, model, tag string) string {
+	return filepath.Join(modelsDir, "manifests", host, filepath.FromSlash(model), tag)
+}
+
+// WriteManifest atomically writes a manifest file, creating parent dirs.
+func WriteManifest(path string, raw []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	tmp := manifestPath + ".tmp"
-	if err := os.WriteFile(tmp, []byte(d.Manifest), 0o644); err != nil {
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, raw, 0o644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, manifestPath)
+	return os.Rename(tmp, path)
+}
+
+type Model struct {
+	Name       string    `json:"name"`
+	Model      string    `json:"model"`
+	Tag        string    `json:"tag"`
+	Size       int64     `json:"size"`
+	ModifiedAt time.Time `json:"modifiedAt"`
+}
+
+// InstalledModels lists installed models with their total size on disk.
+func InstalledModels(modelsDir, host string) []Model {
+	out := []Model{}
+	for _, name := range Installed(modelsDir, host) {
+		model, tag, _ := strings.Cut(name, ":")
+		p := ManifestPath(modelsDir, host, model, tag)
+		m := Model{Name: name, Model: model, Tag: tag}
+		if fi, err := os.Stat(p); err == nil {
+			m.ModifiedAt = fi.ModTime()
+		}
+		if raw, err := os.ReadFile(p); err == nil {
+			var man registry.Manifest
+			if json.Unmarshal(raw, &man) == nil {
+				for _, l := range man.AllBlobs() {
+					m.Size += l.Size
+				}
+			}
+		}
+		out = append(out, m)
+	}
+	return out
 }
 
 func Installed(modelsDir, host string) []string {
@@ -64,7 +107,8 @@ func Installed(modelsDir, host string) []string {
 	return out
 }
 
-func moveFile(src, dst string) error {
+// MoveFile renames src to dst, falling back to copy+delete across filesystems.
+func MoveFile(src, dst string) error {
 	err := os.Rename(src, dst)
 	if err == nil || !errors.Is(err, syscall.EXDEV) {
 		return err

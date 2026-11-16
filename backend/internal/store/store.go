@@ -221,6 +221,17 @@ func (s *Store) SaveBlobProgress(ctx context.Context, b *Blob) error {
 	return err
 }
 
+// SetBlobSize corrects a blob's size and its download's total.
+func (s *Store) SetBlobSize(ctx context.Context, b *Blob, size int64) error {
+	_, err := s.pool.Exec(ctx, `
+		WITH upd AS (UPDATE blobs SET size=$2 WHERE id=$1 RETURNING download_id)
+		UPDATE downloads SET total_bytes = total_bytes + $3 WHERE id = (SELECT download_id FROM upd)`, b.ID, size, size-b.Size)
+	if err == nil {
+		b.Size = size
+	}
+	return err
+}
+
 func (s *Store) Delete(ctx context.Context, id int64) error {
 	_, err := s.pool.Exec(ctx, `DELETE FROM downloads WHERE id=$1`, id)
 	return err

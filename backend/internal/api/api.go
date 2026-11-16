@@ -1,15 +1,11 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -20,6 +16,7 @@ import (
 	"github.com/dagdan/ai-model-downloader/internal/registry"
 	"github.com/dagdan/ai-model-downloader/internal/reveal"
 	"github.com/dagdan/ai-model-downloader/internal/store"
+	"github.com/dagdan/ai-model-downloader/internal/transfer"
 )
 
 type Server struct {
@@ -28,6 +25,8 @@ type Server struct {
 	lib     *library.Client
 	reg     *registry.Client
 	manager *downloader.Manager
+	tr      *transfer.Manager
+	rv      reveal.Client
 }
 
 type downloadView struct {
@@ -35,14 +34,22 @@ type downloadView struct {
 	Stats *downloader.Stats `json:"live"`
 }
 
-func New(cfg config.Config, s *store.Store, lib *library.Client, reg *registry.Client, m *downloader.Manager) http.Handler {
-	srv := &Server{cfg: cfg, store: s, lib: lib, reg: reg, manager: m}
+func New(cfg config.Config, s *store.Store, lib *library.Client, reg *registry.Client, m *downloader.Manager, tr *transfer.Manager, rv reveal.Client) http.Handler {
+	srv := &Server{cfg: cfg, store: s, lib: lib, reg: reg, manager: m, tr: tr, rv: rv}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
 	mux.HandleFunc("GET /api/library", srv.library)
 	mux.HandleFunc("GET /api/models/{ns}/{name}", srv.info)
 	mux.HandleFunc("GET /api/models/{ns}/{name}/tags", srv.tags)
 	mux.HandleFunc("GET /api/installed", srv.installed)
+	mux.HandleFunc("GET /api/installed/models", srv.installedModels)
+	mux.HandleFunc("POST /api/installed/export", srv.export)
+	mux.HandleFunc("GET /api/transfers", srv.listTransfers)
+	mux.HandleFunc("POST /api/transfers/open", srv.openTransferDir)
+	mux.HandleFunc("PUT /api/transfers/upload", srv.upload)
+	mux.HandleFunc("POST /api/transfers/{name}/install", srv.transferAction(func(_ context.Context, n string) error { return tr.Install(n) }))
+	mux.HandleFunc("POST /api/transfers/{name}/reveal", srv.transferAction(tr.Reveal))
+	mux.HandleFunc("DELETE /api/transfers/{name}", srv.transferAction(func(_ context.Context, n string) error { return tr.Delete(n) }))
 	mux.HandleFunc("GET /api/downloads", srv.listDownloads)
 	mux.HandleFunc("POST /api/downloads", srv.createDownload)
 	mux.HandleFunc("POST /api/downloads/{id}/pause", srv.action(m.Pause))
@@ -145,28 +152,61 @@ func (s *Server) reveal(ctx context.Context, id int64) error {
 	if err != nil {
 		return err
 	}
-	if s.cfg.RevealURL == "" {
-		return reveal.Open(filepath.Join(s.cfg.ModelsDir, rel))
-	}
-	body, _ := json.Marshal(map[string]string{"path": filepath.ToSlash(rel)})
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(s.cfg.RevealURL, "/")+"/reveal", bytes.NewReader(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("%w: reveal helper is not running on the host (re-run ./start.sh)", errHelper)
-	}
-	defer res.Body.Close()
-	if res.StatusCode >= 300 {
-		msg, _ := io.ReadAll(io.LimitReader(res.Body, 512))
-		return fmt.Errorf("%w: %s", errHelper, strings.TrimSpace(string(msg)))
-	}
-	return nil
+	return s.rv.Show(ctx, rel, false)
 }
 
-var errHelper = errors.New("show in folder failed")
+func (s *Server) installedModels(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, 200, installer.InstalledModels(s.cfg.ModelsDir, s.reg.Host()))
+}
+
+func (s *Server) export(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Model string `json:"model"`
+		Tag   string `json:"tag"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, 400, err)
+		return
+	}
+	name, err := s.tr.Export(body.Model, body.Tag)
+	if err != nil {
+		writeError(w, statusFor(err), err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]string{"name": name})
+}
+
+func (s *Server) listTransfers(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, 200, map[string]any{"dir": s.tr.Dir(), "packages": s.tr.List()})
+}
+
+func (s *Server) openTransferDir(w http.ResponseWriter, r *http.Request) {
+	if err := s.tr.OpenDir(r.Context()); err != nil {
+		writeError(w, statusFor(err), err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// upload receives one file of a package: PUT /api/transfers/upload?package=<name>&path=<path inside package>
+func (s *Server) upload(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	if err := s.tr.Upload(q.Get("package"), q.Get("path"), r.ContentLength, r.Body); err != nil {
+		writeError(w, statusFor(err), err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) transferAction(fn func(context.Context, string) error) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := fn(r.Context(), r.PathValue("name")); err != nil {
+			writeError(w, statusFor(err), err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -186,11 +226,13 @@ func parseID(r *http.Request) (int64, error) {
 
 func statusFor(err error) int {
 	switch {
-	case errors.Is(err, store.ErrNotFound):
+	case errors.Is(err, store.ErrNotFound), errors.Is(err, transfer.ErrNotFound):
 		return 404
-	case errors.Is(err, downloader.ErrBadState):
+	case errors.Is(err, downloader.ErrBadState), errors.Is(err, transfer.ErrBadState), errors.Is(err, transfer.ErrBusy):
 		return 409
-	case errors.Is(err, errHelper):
+	case errors.Is(err, transfer.ErrInvalid):
+		return 400
+	case errors.Is(err, reveal.ErrFailed):
 		return http.StatusBadGateway
 	}
 	return 500
@@ -199,7 +241,7 @@ func statusFor(err error) int {
 func withCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)

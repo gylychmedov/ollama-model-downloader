@@ -20,6 +20,7 @@ services:
     environment:
       DATABASE_URL: postgres://ollama:ollama@db:5432/downloader?sslmode=disable
       OLLAMA_MODELS_DIR: /ollama-models
+      HOST_MODELS_DIR: ${OLLAMA_MODELS_DIR:-~/.ollama/models}
       ADDR: ":8080"
       DOWNLOAD_CONNECTIONS: ${DOWNLOAD_CONNECTIONS:-4}
       REVEAL_URL: http://host.docker.internal:${REVEAL_PORT:-8471}

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type Download } from "./api";
+import { api, type Download, type TransferStatus } from "./api";
 
 const ACTIVE: Download["status"][] = ["downloading", "installing"];
 
@@ -29,5 +29,36 @@ export function useDownloadActions() {
     install: useMutation({ mutationFn: api.install, ...opts }),
     reveal: useMutation({ mutationFn: api.reveal, onError: (e) => alert(e.message) }),
     remove: useMutation({ mutationFn: api.remove, ...opts }),
+  };
+}
+
+export function useInstalledModels() {
+  return useQuery({ queryKey: ["installed-models"], queryFn: api.installedModels, refetchInterval: 10000 });
+}
+
+const TRANSFER_BUSY: TransferStatus[] = ["exporting", "verifying", "installing", "copying"];
+
+export function useTransfers() {
+  return useQuery({
+    queryKey: ["transfers"],
+    queryFn: api.transfers,
+    refetchInterval: (q) => (q.state.data?.packages.some((p) => TRANSFER_BUSY.includes(p.status)) ? 1000 : 3000),
+  });
+}
+
+export function useTransferActions() {
+  const qc = useQueryClient();
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["transfers"] });
+    qc.invalidateQueries({ queryKey: ["installed"] });
+    qc.invalidateQueries({ queryKey: ["installed-models"] });
+  };
+  const opts = { onSettled: refresh, onError: (e: Error) => alert(e.message) };
+  return {
+    exportModel: useMutation({ mutationFn: (v: { model: string; tag: string }) => api.exportModel(v.model, v.tag), ...opts }),
+    install: useMutation({ mutationFn: api.installTransfer, ...opts }),
+    reveal: useMutation({ mutationFn: api.revealTransfer, onError: (e) => alert(e.message) }),
+    openDir: useMutation({ mutationFn: api.openTransferDir, onError: (e) => alert(e.message) }),
+    remove: useMutation({ mutationFn: api.removeTransfer, ...opts }),
   };
 }

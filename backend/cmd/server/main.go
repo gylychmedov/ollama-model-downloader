@@ -15,7 +15,9 @@ import (
 	"github.com/dagdan/ai-model-downloader/internal/downloader"
 	"github.com/dagdan/ai-model-downloader/internal/library"
 	"github.com/dagdan/ai-model-downloader/internal/registry"
+	"github.com/dagdan/ai-model-downloader/internal/reveal"
 	"github.com/dagdan/ai-model-downloader/internal/store"
+	"github.com/dagdan/ai-model-downloader/internal/transfer"
 )
 
 func main() {
@@ -38,9 +40,12 @@ func main() {
 		log.Printf("resume interrupted downloads: %v", err)
 	}
 
+	rv := reveal.Client{ModelsDir: cfg.ModelsDir, HelperURL: cfg.RevealURL}
+	tr := transfer.New(cfg.ModelsDir, cfg.HostModelsDir, reg.Host(), rv)
+
 	lib := library.New(cfg.OllamaWebURL, st)
 	go lib.Prewarm(ctx)
-	srv := &http.Server{Addr: cfg.Addr, Handler: api.New(cfg, st, lib, reg, mgr)}
+	srv := &http.Server{Addr: cfg.Addr, Handler: api.New(cfg, st, lib, reg, mgr, tr, rv)}
 	go func() {
 		log.Printf("listening on %s (models dir %s)", cfg.Addr, cfg.ModelsDir)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

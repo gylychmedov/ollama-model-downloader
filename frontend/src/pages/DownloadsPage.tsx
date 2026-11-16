@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import DownloadCard from "../components/DownloadCard";
-import { useDownloads } from "../lib/hooks";
+import ImportPanel from "../components/ImportPanel";
+import TransferCard from "../components/TransferCard";
+import { useDownloads, useTransfers } from "../lib/hooks";
 import { formatBytes } from "../lib/format";
 import { Card, EmptyState } from "../components/ui";
 import { IconBolt, IconBox, IconCheck, IconDownload } from "../components/icons";
@@ -19,6 +21,9 @@ function Summary({ icon, label, value, accent }: { icon: React.ReactNode; label:
 
 export default function DownloadsPage() {
   const { data, isLoading, error } = useDownloads();
+  const { data: transfers } = useTransfers();
+  // Exports are managed on the Installed page; here we list folders brought from other computers.
+  const imports = transfers?.packages.filter((p) => p.status !== "exporting") ?? [];
   const active = data?.filter((d) => d.status === "downloading") ?? [];
   const speed = active.reduce((s, d) => s + (d.live?.speed ?? 0), 0);
 
@@ -38,9 +43,14 @@ export default function DownloadsPage() {
         </div>
       )}
 
+      <div className="mb-8 grid gap-4 xl:grid-cols-2">
+        <ImportPanel dir={transfers?.dir} />
+        {imports.map((p) => <TransferCard key={p.name} p={p} />)}
+      </div>
+
       {isLoading && <div className="h-40 animate-pulse rounded-2xl bg-white/5" />}
       {error && <EmptyState icon="!" title="Could not load downloads">{(error as Error).message}</EmptyState>}
-      {data?.length === 0 && (
+      {data?.length === 0 && imports.length === 0 && (
         <EmptyState icon={<IconDownload />} title="No downloads yet">
           <Link to="/" className="text-emerald-400 hover:underline">Browse the library</Link> to start one.
         </EmptyState>

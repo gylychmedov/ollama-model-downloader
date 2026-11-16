@@ -7,13 +7,15 @@ import (
 )
 
 type Config struct {
-	Addr         string
-	DatabaseURL  string
-	ModelsDir    string
-	StagingDir   string
-	Connections  int
-	OllamaWebURL string
-	RegistryURL  string
+	Addr        string
+	DatabaseURL string
+	ModelsDir   string
+	// HostModelsDir is ModelsDir as seen on the host, shown to the user (differs inside Docker).
+	HostModelsDir string
+	StagingDir    string
+	Connections   int
+	OllamaWebURL  string
+	RegistryURL   string
 	// RevealURL is the host reveal-helper; empty means open the file manager directly.
 	RevealURL string
 }
@@ -26,14 +28,15 @@ func Load() Config {
 		conns = 4
 	}
 	return Config{
-		Addr:         env("ADDR", ":8470"),
-		DatabaseURL:  env("DATABASE_URL", "postgres://ollama:ollama@localhost:5470/downloader?sslmode=disable"),
-		ModelsDir:    models,
-		StagingDir:   env("STAGING_DIR", filepath.Join(models, ".downloader-staging")),
-		Connections:  conns,
-		OllamaWebURL: env("OLLAMA_WEB_URL", "https://ollama.com"),
-		RegistryURL:  env("OLLAMA_REGISTRY_URL", "https://registry.ollama.ai"),
-		RevealURL:    os.Getenv("REVEAL_URL"),
+		Addr:          env("ADDR", ":8470"),
+		DatabaseURL:   env("DATABASE_URL", "postgres://ollama:ollama@localhost:5470/downloader?sslmode=disable"),
+		ModelsDir:     models,
+		HostModelsDir: env("HOST_MODELS_DIR", models),
+		StagingDir:    env("STAGING_DIR", filepath.Join(models, ".downloader-staging")),
+		Connections:   conns,
+		OllamaWebURL:  env("OLLAMA_WEB_URL", "https://ollama.com"),
+		RegistryURL:   env("OLLAMA_REGISTRY_URL", "https://registry.ollama.ai"),
+		RevealURL:     os.Getenv("REVEAL_URL"),
 	}
 }
 

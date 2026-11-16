@@ -30,6 +30,14 @@ Partial files are stored in `<models dir>/.downloader-staging/<id>/`. Because th
 
 **Show in Finder** opens the staging folder, or after install selects the model's manifest. The backend runs in Docker and can't open Finder itself, so `start.sh` builds and starts a small host process (`backend/cmd/reveal-helper`) on `127.0.0.1:$REVEAL_PORT`. The helper only opens paths inside the models dir. When you run the backend natively without `REVEAL_URL`, it opens the file manager directly.
 
+## Move a model to another computer
+
+1. Click **N installed** in the header, then **Copy** on a model. The app puts the model's files in `<models dir>/transfer/<model>-<tag>/` and selects that folder in Finder. The files are hard links to Ollama's own blobs, so this is instant and takes no extra disk space.
+2. Copy that folder to a USB drive.
+3. On the other computer, paste it into `<models dir>/transfer/`. **Downloads** has an **Open in Finder** button for that folder. The model shows up there with an **Install** button. If the folder is somewhere else, like the Desktop, click **Choose folder…** and pick it. The browser then copies it into the transfer folder.
+
+Install checks every blob with sha256, so a bad USB copy gets caught. It then moves the blobs into Ollama's store, writes the manifest and deletes the folder. The folder uses the same layout as Ollama's models dir (`blobs/`, `manifests/…`), so you can also install it without this app: run `cp -R blobs manifests ~/.ollama/models/` from inside the folder. `README.txt` in the folder explains this.
+
 ## Development
 
 ```bash
@@ -45,6 +53,13 @@ cd frontend && npm install && npm run dev  # :3471, proxies /api to :8470
 | GET | `/api/library?q=` | Library or search results |
 | GET | `/api/models/{ns}/{name}/tags` | Tags with param size, size, context |
 | GET | `/api/installed` | Models installed in Ollama |
+| GET | `/api/installed/models` | Installed models with size and date |
+| POST | `/api/installed/export` | `{"model":"library/gemma3","tag":"27b"}`, prepares a transfer folder and reveals it |
+| GET | `/api/transfers` | Transfer folder path and the model folders in it |
+| POST | `/api/transfers/open` | Open the transfer folder in Finder |
+| PUT | `/api/transfers/upload?package=&path=` | Upload one file of a model folder (raw body) |
+| POST | `/api/transfers/{name}/install\|reveal` | |
+| DELETE | `/api/transfers/{name}` | Delete a folder from the transfer folder |
 | GET | `/api/downloads` | Downloads with live speed and retries |
 | POST | `/api/downloads` | `{"model":"bonsai-2","tag":"27b"}` |
 | POST | `/api/downloads/{id}/pause\|resume\|install\|reveal` | |

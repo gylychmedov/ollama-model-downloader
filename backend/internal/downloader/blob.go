@@ -7,9 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -61,6 +63,16 @@ func (m *Manager) downloadBlob(ctx context.Context, j *job, d *store.Download, b
 	fi, err := f.Stat()
 	if err != nil {
 		return err
+	}
+	if len(b.Segments) == 0 {
+		// Manifests sometimes list the wrong size for small blobs (e.g. a config of
+		// 539 bytes that is really 542), so ask the server for the real one.
+		if real, err := m.probeSize(ctx, m.reg.BlobURL(d.Model, b.Digest)); err == nil && real != b.Size {
+			log.Printf("download %d: %s is %d bytes, manifest says %d", d.ID, b.Digest, real, b.Size)
+			if err := m.store.SetBlobSize(ctx, b, real); err != nil {
+				return err
+			}
+		}
 	}
 	if len(b.Segments) == 0 || fi.Size() != b.Size {
 		if fi.Size() != b.Size && b.Downloaded > 0 {
@@ -242,6 +254,37 @@ func (m *Manager) fetchRange(ctx context.Context, j *job, url string, f *os.File
 			return rerr
 		}
 	}
+}
+
+// probeSize returns a blob's real size from a one-byte range request. HEAD
+// can't be used: the registry redirects to a URL presigned for GET only.
+func (m *Manager) probeSize(ctx context.Context, url string) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return 0, err
+	}
+	req.Header.Set("Range", "bytes=0-0")
+	resp, err := m.http.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+	switch resp.StatusCode {
+	case http.StatusPartialContent:
+		cr := resp.Header.Get("Content-Range")
+		if i := strings.LastIndex(cr, "/"); i >= 0 {
+			if n, err := strconv.ParseInt(cr[i+1:], 10, 64); err == nil && n >= 0 {
+				return n, nil
+			}
+		}
+	case http.StatusOK:
+		if resp.ContentLength >= 0 {
+			return resp.ContentLength, nil
+		}
+	}
+	return 0, fmt.Errorf("size unknown (%s)", resp.Status)
 }
 
 func hashFile(ctx context.Context, f *os.File) (string, error) {

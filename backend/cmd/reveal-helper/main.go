@@ -31,7 +31,8 @@ func main() {
 			return
 		}
 		var body struct {
-			Path string `json:"path"`
+			Path   string `json:"path"`
+			Select bool   `json:"select"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -42,7 +43,7 @@ func main() {
 			http.Error(w, err.Error(), http.StatusForbidden)
 			return
 		}
-		if err := reveal.Open(p); err != nil {
+		if err := reveal.Open(p, body.Select); err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
 		}

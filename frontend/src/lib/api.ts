@@ -54,6 +54,31 @@ export type Download = {
   } | null;
 };
 
+export type InstalledModel = {
+  name: string;
+  model: string;
+  tag: string;
+  size: number;
+  modifiedAt: string;
+};
+
+export type TransferStatus = "copying" | "ready" | "verifying" | "installing" | "installed" | "exporting" | "error" | "invalid";
+
+export type TransferPackage = {
+  name: string;
+  path: string;
+  models: { name: string; host: string; size: number; installed: boolean }[];
+  status: TransferStatus;
+  totalBytes: number;
+  presentBytes: number;
+  progressBytes: number;
+  progressTotal: number;
+  error: string;
+  modifiedAt: string;
+};
+
+export type Transfers = { dir: string; packages: TransferPackage[] };
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     ...init,
@@ -79,6 +104,40 @@ export const api = {
   install: (id: number) => request<void>(`/downloads/${id}/install`, { method: "POST" }),
   reveal: (id: number) => request<void>(`/downloads/${id}/reveal`, { method: "POST" }),
   remove: (id: number) => request<void>(`/downloads/${id}`, { method: "DELETE" }),
+  installedModels: () => request<InstalledModel[]>("/installed/models"),
+  exportModel: (model: string, tag: string) =>
+    request<{ name: string }>("/installed/export", { method: "POST", body: JSON.stringify({ model, tag }) }),
+  transfers: () => request<Transfers>("/transfers"),
+  openTransferDir: () => request<void>("/transfers/open", { method: "POST" }),
+  installTransfer: (name: string) => request<void>(`/transfers/${encodeURIComponent(name)}/install`, { method: "POST" }),
+  revealTransfer: (name: string) => request<void>(`/transfers/${encodeURIComponent(name)}/reveal`, { method: "POST" }),
+  removeTransfer: (name: string) => request<void>(`/transfers/${encodeURIComponent(name)}`, { method: "DELETE" }),
 };
+
+/** Uploads one file of a model folder. Uses XHR because fetch has no upload progress. */
+export function uploadTransferFile(pkg: string, path: string, file: File, onProgress: (loaded: number) => void, signal: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", `/api/transfers/upload?package=${encodeURIComponent(pkg)}&path=${encodeURIComponent(path)}`);
+    xhr.upload.onprogress = (e) => onProgress(e.loaded);
+    xhr.onload = () => {
+      if (xhr.status < 300) return resolve();
+      let msg = xhr.statusText;
+      try {
+        msg = JSON.parse(xhr.responseText).error ?? msg;
+      } catch {
+        /* not JSON */
+      }
+      reject(new Error(msg));
+    };
+    xhr.onerror = () => reject(new Error("Upload failed — is the backend running?"));
+    xhr.onabort = () => reject(new DOMException("Upload cancelled", "AbortError"));
+    signal.addEventListener("abort", () => xhr.abort());
+    xhr.send(file);
+  });
+}
+
+/** Folder name the backend uses for an exported model (mirrors transfer.ExportName). */
+export const exportName = (model: string, tag: string) => `${model.replace(/^library\//, "").replaceAll("/", "-")}-${tag}`;
 
 export const displayName = (model: string) => model.replace(/^library\//, "");

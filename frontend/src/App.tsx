@@ -3,15 +3,18 @@ import { NavLink, Route, Routes } from "react-router-dom";
 import LibraryPage from "./pages/LibraryPage";
 import ModelPage from "./pages/ModelPage";
 import DownloadsPage from "./pages/DownloadsPage";
-import { useDownloads, useInstalled } from "./lib/hooks";
+import InstalledPage from "./pages/InstalledPage";
+import { useDownloads, useInstalled, useTransfers } from "./lib/hooks";
 import { formatBytes } from "./lib/format";
 import { IconBox, IconDownload, IconGrid } from "./components/icons";
 
 function Header() {
   const { data } = useDownloads();
   const { data: installed } = useInstalled();
+  const { data: transfers } = useTransfers();
+  const readyImports = transfers?.packages.filter((p) => p.status === "ready").length ?? 0;
   const active = data?.filter((d) => d.status === "downloading") ?? [];
-  const ready = data?.filter((d) => d.status === "completed").length ?? 0;
+  const ready = (data?.filter((d) => d.status === "completed").length ?? 0) + readyImports;
   const speed = active.reduce((s, d) => s + (d.live?.speed ?? 0), 0);
 
   const tab = ({ isActive }: { isActive: boolean }) =>
@@ -77,9 +80,9 @@ function Header() {
           </NavLink>
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="flex items-center gap-2">
           {active.length > 0 && (
-            <div className="flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300">
+            <div className="hidden items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 md:flex">
               <span className="relative flex size-2">
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex size-2 rounded-full bg-emerald-400" />
@@ -87,9 +90,17 @@ function Header() {
               {formatBytes(speed)}/s
             </div>
           )}
-          <div className="flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-xs text-zinc-400">
-            <IconBox /> {installed?.length ?? 0} installed
-          </div>
+          <NavLink
+            to="/installed"
+            title="Installed models"
+            className={({ isActive }) =>
+              `flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition ${
+                isActive ? "border-white bg-white text-zinc-900" : "border-white/[0.08] bg-white/[0.03] text-zinc-400 hover:border-white/20 hover:text-white"
+              }`
+            }
+          >
+            <IconBox /> {installed?.length ?? 0}<span className="hidden sm:inline"> installed</span>
+          </NavLink>
         </div>
 
         <div
@@ -116,6 +127,7 @@ export default function App() {
           <Route path="/" element={<LibraryPage />} />
           <Route path="/m/:ns/:name" element={<ModelPage />} />
           <Route path="/downloads" element={<DownloadsPage />} />
+          <Route path="/installed" element={<InstalledPage />} />
         </Routes>
       </main>
     </div>
