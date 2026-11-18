@@ -34,30 +34,35 @@ func ollamaName(model, tag string) string {
 
 func (s *Server) deleteInstalled(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	model, tag := r.URL.Query().Get("model"), r.URL.Query().Get("tag")
-
 	keep, err := s.manager.KeepDigests(ctx)
 	if err != nil {
 		writeError(w, 500, err)
 		return
 	}
+	freed, err := s.removeModel(ctx, r.URL.Query().Get("model"), r.URL.Query().Get("tag"), keep)
+	if err != nil {
+		writeError(w, statusFor(err), err)
+		return
+	}
+	writeJSON(w, 200, map[string]int64{"freedBytes": freed})
+}
 
+// removeModel unloads a model from Ollama, deletes it and the blobs only it used, and forgets its download.
+func (s *Server) removeModel(ctx context.Context, model, tag string, keep map[string]bool) (int64, error) {
 	name := ollamaName(model, tag)
 	for _, l := range s.ollama.Status(ctx).Loaded {
 		if l.Name == name || l.Name == model+":"+tag {
 			_ = s.ollama.Unload(ctx, l.Name)
 		}
 	}
-
 	freed, err := installer.Remove(s.cfg.ModelsDir, s.reg.Host(), model, tag, func(d string) bool { return keep[d] })
 	if err != nil {
-		writeError(w, statusFor(err), err)
-		return
+		return 0, err
 	}
 	if d, err := s.store.FindByModelTag(ctx, model, tag); err == nil && d.Status == store.StatusInstalled {
 		_ = s.store.Delete(ctx, d.ID)
 	}
-	writeJSON(w, 200, map[string]int64{"freedBytes": freed})
+	return freed, nil
 }
 
 func (s *Server) listUpdates(w http.ResponseWriter, r *http.Request) {
