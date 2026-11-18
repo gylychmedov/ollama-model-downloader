@@ -22,30 +22,33 @@ function minSize(m: LibraryModel) {
 
 function ModelCard({ m, installed }: { m: LibraryModel; installed: boolean }) {
   const [ns, short] = m.name.split("/");
-  const sizes = m.sizes.slice(0, 5);
+  const sizes = m.sizes.slice(0, 6);
   return (
     <Link to={`/m/${m.name}`} className="group block h-full">
-      <Card className="relative flex h-full flex-col p-5 transition duration-300 group-hover:-translate-y-1 group-hover:border-emerald-500/30 group-hover:shadow-emerald-500/10">
-        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-500/0 to-emerald-500/0 transition duration-300 group-hover:from-emerald-500/[0.06]" />
+      <Card className="relative flex h-full flex-col overflow-hidden p-6 transition duration-300 group-hover:-translate-y-1 group-hover:border-emerald-500/40 group-hover:shadow-2xl group-hover:shadow-emerald-500/10">
+        <div className="pointer-events-none absolute -top-20 -right-20 size-48 rounded-full bg-emerald-500/0 blur-3xl transition duration-500 group-hover:bg-emerald-500/15" />
 
-        <div className="relative flex items-start gap-3">
-          <ModelAvatar name={m.name} />
-          <div className="min-w-0 flex-1">
-            <h2 className="truncate font-semibold tracking-tight text-white">{short}</h2>
-            <p className="truncate text-xs text-zinc-500">{ns === "library" ? "Official library" : `by ${ns}`}</p>
+        <div className="relative flex items-start gap-4">
+          <ModelAvatar name={m.name} size="lg" />
+          <div className="min-w-0 flex-1 pt-1">
+            <h2 className="truncate text-lg font-semibold tracking-tight text-white">{short}</h2>
+            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+              <span className={ns === "library" ? "text-emerald-400/90" : "text-zinc-500"}>{ns === "library" ? "Official" : `by ${ns}`}</span>
+              {installed && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 font-medium text-emerald-300 ring-1 ring-inset ring-emerald-500/30">
+                  <IconCheck /> Installed
+                </span>
+              )}
+            </div>
           </div>
-          {installed ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-300 ring-1 ring-inset ring-emerald-500/30">
-              <IconCheck /> Installed
-            </span>
-          ) : (
-            <span className="grid size-8 place-items-center rounded-full bg-white/5 text-zinc-400 opacity-0 ring-1 ring-white/10 transition group-hover:translate-x-0.5 group-hover:opacity-100">
-              <IconArrowRight />
+          {m.pulls && (
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white/5 px-2.5 py-1 text-xs font-medium text-zinc-300 ring-1 ring-white/10" title="Downloads">
+              <IconDownload className="text-zinc-500" /> {m.pulls}
             </span>
           )}
         </div>
 
-        <p className="relative mt-4 line-clamp-2 flex-1 text-sm leading-relaxed text-zinc-400">{m.description || "No description provided."}</p>
+        <p className="relative mt-5 line-clamp-3 flex-1 text-sm leading-relaxed text-zinc-400">{m.description || "No description provided."}</p>
 
         {m.capabilities.length > 0 && (
           <div className="relative mt-4 flex flex-wrap gap-1.5">
@@ -53,17 +56,20 @@ function ModelCard({ m, installed }: { m: LibraryModel; installed: boolean }) {
           </div>
         )}
 
-        <div className="relative mt-4 flex items-center justify-between gap-3 border-t border-white/[0.06] pt-4">
-          <div className="flex flex-wrap gap-1">
-            {sizes.map((s) => <SizeChip key={s}>{s}</SizeChip>)}
-            {m.sizes.length > sizes.length && <SizeChip>+{m.sizes.length - sizes.length}</SizeChip>}
-            {m.sizes.length === 0 && <span className="text-xs text-zinc-600">—</span>}
+        <div className="relative mt-5 flex items-end justify-between gap-3 rounded-xl bg-white/[0.03] p-3 ring-1 ring-white/[0.06]">
+          <div className="min-w-0">
+            <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-zinc-500">
+              {m.sizes.length ? `${m.sizes.length} size${m.sizes.length > 1 ? "s" : ""}` : "Sizes"}
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {sizes.map((s) => <SizeChip key={s}>{s}</SizeChip>)}
+              {m.sizes.length > sizes.length && <SizeChip>+{m.sizes.length - sizes.length}</SizeChip>}
+              {m.sizes.length === 0 && <span className="text-xs text-zinc-600">—</span>}
+            </div>
           </div>
-          {m.pulls && (
-            <span className="flex shrink-0 items-center gap-1 text-xs text-zinc-500">
-              <IconDownload /> {m.pulls}
-            </span>
-          )}
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white/5 text-zinc-400 ring-1 ring-white/10 transition group-hover:bg-emerald-500 group-hover:text-zinc-950 group-hover:ring-emerald-400">
+            <IconArrowRight />
+          </span>
         </div>
       </Card>
     </Link>
@@ -191,7 +197,7 @@ export default function LibraryPage() {
       {error && <EmptyState icon="!" title="Could not load models">{(error as Error).message}</EmptyState>}
       {models && models.length === 0 && <EmptyState icon={<IconSearch />} title="No models found">Try another search term.</EmptyState>}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 min-[1900px]:grid-cols-5">
         {isLoading && Array.from({ length: 9 }, (_, i) => <SkeletonCard key={i} />)}
         {models?.map((m) => <ModelCard key={m.name} m={m} installed={installedModels.has(m.name)} />)}
       </div>
