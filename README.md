@@ -2,11 +2,20 @@
 
 Resumable downloader and installer for Ollama models, built for unstable connections.
 
-- Browse and search the ollama.com library, including community models like `user/model`
-- Choose a parameter size (2b, 9b, 27b, …) and then a variant
-- Downloads use HTTP range requests over several parallel connections. Progress is saved in Postgres every 2s
-- Pause and resume at any time. Dropped connections retry automatically. A connection that stalls for 45s is reopened. Restarting the backend picks up where it stopped
-- Every blob is checked with sha256, then **Install** moves the blobs into Ollama's store and writes the manifest, so `ollama run` works right away
+## Features
+
+- **Browse the library** — search ollama.com, including community models like `user/model`
+- **Download by parameter size** — pick a size (2b, 9b, 27b, …), then a variant
+- **Resumable downloads** — pause and resume any time; progress is saved every 2s and survives a backend restart
+- **Built for bad connections** — parallel HTTP range requests, automatic retries, and stalled connections reopened after 45s
+- **Smart hardware check** — shows whether each size and variant fits your RAM, GPU and disk, with a speed estimate
+- **Update check** — compares installed models with the registry and shows which ones have a newer version
+- **Verified install** — every blob is checked with sha256, then installed into Ollama's store so `ollama run` works right away
+- **Model library** — see installed models with size, family, quantization and architecture, and delete ones you no longer need
+- **Dashboard** — host CPU, memory and disk, Ollama status and loaded models
+- **Move models between computers** — export a model to a folder, copy it on a USB drive, and install it on another machine
+- **Show in Finder** — open a download's or an installed model's files
+- **Light and dark mode**
 
 ## Run
 
@@ -56,6 +65,7 @@ cd frontend && npm install && npm run dev  # :3471, proxies /api to :8470
 | GET | `/api/installed` | Models installed in Ollama |
 | GET | `/api/installed/models` | Installed models with size, date, family, parameters and quantization |
 | GET | `/api/installed/detail?model=&tag=` | Layers, architecture (read from the GGUF header), capabilities and parameters of one model |
+| GET | `/api/updates` | Installed models with a newer version in the registry |
 | DELETE | `/api/installed?model=&tag=` | Deletes a model and the blobs no other model or pending download uses |
 | GET | `/api/dashboard` | Host CPU, memory and disk, Ollama status, storage used and installed models |
 | POST | `/api/installed/export` | `{"model":"library/gemma3","tag":"27b"}`, prepares a transfer folder and reveals it |
