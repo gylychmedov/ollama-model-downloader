@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -45,7 +46,7 @@ func main() {
 
 	lib := library.New(cfg.OllamaWebURL, st)
 	go lib.Prewarm(ctx)
-	srv := &http.Server{Addr: cfg.Addr, Handler: api.New(cfg, st, lib, reg, mgr, tr, rv)}
+	srv := &http.Server{Addr: cfg.Addr, Handler: api.New(cfg, st, lib, reg, mgr, tr, rv), BaseContext: func(net.Listener) context.Context { return ctx }}
 	go func() {
 		log.Printf("listening on %s (models dir %s)", cfg.Addr, cfg.ModelsDir)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

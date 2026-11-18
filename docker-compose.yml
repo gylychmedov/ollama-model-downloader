@@ -24,6 +24,7 @@ services:
       ADDR: ":8080"
       DOWNLOAD_CONNECTIONS: ${DOWNLOAD_CONNECTIONS:-4}
       REVEAL_URL: http://host.docker.internal:${REVEAL_PORT:-8471}
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

@@ -3,6 +3,7 @@ import { displayName, exportName, type InstalledModel, type TransferPackage } fr
 import { formatBytes } from "../lib/format";
 import { useInstalledModels, useTransferActions, useTransfers } from "../lib/hooks";
 import ProgressBar from "../components/ProgressBar";
+import DeleteModelButton from "../components/DeleteModelButton";
 import { Card, EmptyState, ModelAvatar } from "../components/ui";
 import { IconAlert, IconBox, IconCopy, IconFolder, IconTerminal, IconTrash, IconUsb } from "../components/icons";
 
@@ -48,9 +49,11 @@ function ModelRow({ m, pkg }: { m: InstalledModel; pkg?: TransferPackage }) {
       <div className="flex flex-wrap items-center gap-3">
         <ModelAvatar name={m.model} size="sm" />
         <div className="min-w-0 flex-1">
-          <Link to={`/m/${m.model}`} className="block truncate font-semibold tracking-tight hover:text-emerald-400">{name}</Link>
+          <Link to={`/installed/${m.model}/${m.tag}`} className="block truncate font-semibold tracking-tight hover:text-emerald-400">{name}</Link>
           <div className="text-xs text-zinc-500">
-            {formatBytes(m.size)} · installed {new Date(m.modifiedAt).toLocaleDateString()}
+            {formatBytes(m.size)}
+            {m.parameterSize && ` · ${m.parameterSize}`}
+            {m.quantization && ` · ${m.quantization}`} · installed {new Date(m.modifiedAt).toLocaleDateString()}
           </div>
         </div>
         <div className="flex gap-2">
@@ -76,6 +79,7 @@ function ModelRow({ m, pkg }: { m: InstalledModel; pkg?: TransferPackage }) {
               <IconTrash />
             </button>
           )}
+          <DeleteModelButton model={m.model} tag={m.tag} size={m.size} label />
         </div>
       </div>
 

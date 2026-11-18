@@ -1,5 +1,5 @@
 // reveal-helper runs on the host (outside Docker) so the backend can open
-// downloaded files in Finder / Explorer. It only accepts paths inside the
+// downloaded files in Finder / Explorer and read host CPU, memory and disk info. It only accepts paths inside the
 // Ollama models dir and only listens on loopback.
 package main
 
@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/dagdan/ai-model-downloader/internal/reveal"
+	"github.com/dagdan/ai-model-downloader/internal/sysinfo"
 )
 
 func main() {
@@ -48,6 +49,15 @@ func main() {
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
+	})
+
+	mux.HandleFunc("GET /system", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(sysinfo.Collect(root))
+	})
+	mux.HandleFunc("GET /live", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(sysinfo.CollectLive(root))
 	})
 
 	log.Printf("reveal-helper listening on %s (models dir %s)", addr, root)

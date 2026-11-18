@@ -4,9 +4,11 @@ import LibraryPage from "./pages/LibraryPage";
 import ModelPage from "./pages/ModelPage";
 import DownloadsPage from "./pages/DownloadsPage";
 import InstalledPage from "./pages/InstalledPage";
+import InstalledModelPage from "./pages/InstalledModelPage";
+import DashboardPage from "./pages/DashboardPage";
 import { useDownloads, useInstalled, useTransfers } from "./lib/hooks";
 import { formatBytes } from "./lib/format";
-import { IconBox, IconDownload, IconGrid } from "./components/icons";
+import { IconBox, IconDownload, IconGauge, IconGrid } from "./components/icons";
 
 function Header() {
   const { data } = useDownloads();
@@ -70,6 +72,9 @@ function Header() {
           <NavLink to="/" end className={tab}>
             <IconGrid /> Library
           </NavLink>
+          <NavLink to="/dashboard" className={tab}>
+            <IconGauge /> <span className="hidden sm:inline">Dashboard</span>
+          </NavLink>
           <NavLink to="/downloads" className={tab}>
             <IconDownload /> Downloads
             {active.length + ready > 0 && (
@@ -128,6 +133,8 @@ export default function App() {
           <Route path="/m/:ns/:name" element={<ModelPage />} />
           <Route path="/downloads" element={<DownloadsPage />} />
           <Route path="/installed" element={<InstalledPage />} />
+          <Route path="/installed/:ns/:name/:tag" element={<InstalledModelPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
         </Routes>
       </main>
     </div>

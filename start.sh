@@ -57,12 +57,6 @@ for port in "$WEB_PORT" "$API_PORT" "$DB_PORT" "$REVEAL_PORT"; do
   fi
 done
 
-# --- Restart stack ---
-if [[ -n "$(docker compose ps -q 2>/dev/null)" ]]; then
-  info "Stopping running containers (downloads resume automatically)..."
-  docker compose down --remove-orphans
-fi
-
 # --- Reveal helper (host process so "Show in folder" can open Finder) ---
 HELPER_BIN="$ROOT_DIR/backend/bin/reveal-helper"
 HELPER_PID="$ROOT_DIR/backend/bin/reveal-helper.pid"
@@ -73,7 +67,7 @@ fi
 info "Building reveal helper..."
 mkdir -p "$ROOT_DIR/backend/bin"
 case "$(uname -m)" in arm64|aarch64) GOARCH=arm64 ;; *) GOARCH=amd64 ;; esac
-if docker run --rm -v "$ROOT_DIR/backend":/src -w /src \
+if docker run --rm -v "$ROOT_DIR/backend":/src -v reveal-helper-gocache:/root/.cache -v reveal-helper-gomod:/go/pkg/mod -w /src \
     -e CGO_ENABLED=0 -e GOOS="$(uname -s | tr '[:upper:]' '[:lower:]')" -e GOARCH="$GOARCH" \
     golang:1.26-alpine go build -trimpath -o bin/reveal-helper ./cmd/reveal-helper; then
   nohup "$HELPER_BIN" >"$ROOT_DIR/backend/bin/reveal-helper.log" 2>&1 &
@@ -82,11 +76,8 @@ else
   warn "Could not build the reveal helper. 'Show in folder' will not work."
 fi
 
-info "Building containers..."
-docker compose build
-
-info "Starting containers..."
-docker compose up -d
+info "Building and starting containers (only changed ones are recreated)..."
+docker compose up -d --build --remove-orphans
 
 info "Waiting for backend..."
 backend_ready() {

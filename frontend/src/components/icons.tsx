@@ -40,3 +40,8 @@ export const IconFolder = base(<path d="M4 6a1 1 0 0 1 1-1h4l2 2h8a1 1 0 0 1 1 1
 export const IconCopy = base(<><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3" /></>);
 export const IconUpload = base(<><path d="M12 15V4" /><path d="m7 9 5-5 5 5" /><path d="M5 20h14" /></>);
 export const IconUsb = base(<><rect x="7" y="9" width="10" height="12" rx="2" /><path d="M9 9V3h6v6" /><path d="M11 5h.01M13 5h.01" /></>);
+export const IconGauge = base(<><path d="M4 18a8 8 0 1 1 16 0" /><path d="m12 18 4-6" /><path d="M12 18h.01" /></>);
+export const IconCpu = base(<><rect x="6" y="6" width="12" height="12" rx="2" /><rect x="9.5" y="9.5" width="5" height="5" rx="1" /><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3" /></>);
+export const IconMemory = base(<><rect x="3" y="7" width="18" height="10" rx="1.5" /><path d="M7 7v10M11 7v10M15 7v10" /><path d="M6 17v3M18 17v3" /></>);
+export const IconDisk = base(<><ellipse cx="12" cy="6" rx="8" ry="3" /><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6" /><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" /></>);
+export const IconStar = base(<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />);

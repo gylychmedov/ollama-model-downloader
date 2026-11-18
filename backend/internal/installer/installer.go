@@ -1,7 +1,6 @@
 package installer
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dagdan/ai-model-downloader/internal/registry"
 	"github.com/dagdan/ai-model-downloader/internal/store"
 )
 
@@ -61,11 +59,15 @@ func WriteManifest(path string, raw []byte) error {
 }
 
 type Model struct {
-	Name       string    `json:"name"`
-	Model      string    `json:"model"`
-	Tag        string    `json:"tag"`
-	Size       int64     `json:"size"`
-	ModifiedAt time.Time `json:"modifiedAt"`
+	Name          string    `json:"name"`
+	Model         string    `json:"model"`
+	Tag           string    `json:"tag"`
+	Size          int64     `json:"size"`
+	ModifiedAt    time.Time `json:"modifiedAt"`
+	Format        string    `json:"format"`
+	Family        string    `json:"family"`
+	ParameterSize string    `json:"parameterSize"`
+	Quantization  string    `json:"quantization"`
 }
 
 // InstalledModels lists installed models with their total size on disk.
@@ -78,13 +80,11 @@ func InstalledModels(modelsDir, host string) []Model {
 		if fi, err := os.Stat(p); err == nil {
 			m.ModifiedAt = fi.ModTime()
 		}
-		if raw, err := os.ReadFile(p); err == nil {
-			var man registry.Manifest
-			if json.Unmarshal(raw, &man) == nil {
-				for _, l := range man.AllBlobs() {
-					m.Size += l.Size
-				}
+		if man, _, err := readManifest(p); err == nil {
+			for _, l := range uniqueBlobs(man) {
+				m.Size += l.Size
 			}
+			m.applyConfig(readConfig(modelsDir, man))
 		}
 		out = append(out, m)
 	}

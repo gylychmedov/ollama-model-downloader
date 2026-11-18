@@ -60,6 +60,74 @@ export type InstalledModel = {
   tag: string;
   size: number;
   modifiedAt: string;
+  format: string;
+  family: string;
+  parameterSize: string;
+  quantization: string;
+};
+
+export type ModelArch = {
+  architecture: string;
+  name: string;
+  basename: string;
+  sizeLabel: string;
+  license: string;
+  parameterCount: number;
+  contextLength: number;
+  embeddingLength: number;
+  blockCount: number;
+  headCount: number;
+  headCountKv: number;
+  expertCount: number;
+  expertUsedCount: number;
+  vocabSize: number;
+  vision: boolean;
+  pooling: boolean;
+};
+
+export type ModelDetail = InstalledModel & {
+  id: string;
+  host: string;
+  path: string;
+  capabilities: string[];
+  layers: { kind: string; mediaType: string; digest: string; size: number; shared: boolean }[];
+  uniqueBytes: number;
+  params: Record<string, unknown> | null;
+  template: string;
+  system: string;
+  license: string;
+  arch: ModelArch | null;
+  archError?: string;
+};
+
+export type SystemInfo = {
+  hostname: string;
+  os: string;
+  osVersion: string;
+  arch: string;
+  cpu: string;
+  cores: number;
+  memoryTotal: number;
+  memoryAvailable: number;
+  diskTotal: number;
+  diskFree: number;
+  source: "host" | "container";
+};
+
+export type LoadedModel = { name: string; size: number; size_vram: number; expires_at: string; context_length?: number };
+
+export type LiveStats = {
+  system: Pick<SystemInfo, "memoryTotal" | "memoryAvailable" | "diskTotal" | "diskFree" | "source">;
+  ollama: Dashboard["ollama"];
+  staging: number;
+};
+
+export type Dashboard = {
+  system: SystemInfo;
+  ollama: { url: string; running: boolean; version: string; loaded: LoadedModel[] };
+  modelsDir: string;
+  storage: { models: number; staging: number };
+  models: InstalledModel[];
 };
 
 export type TransferStatus = "copying" | "ready" | "verifying" | "installing" | "installed" | "exporting" | "error" | "invalid";
@@ -105,6 +173,11 @@ export const api = {
   reveal: (id: number) => request<void>(`/downloads/${id}/reveal`, { method: "POST" }),
   remove: (id: number) => request<void>(`/downloads/${id}`, { method: "DELETE" }),
   installedModels: () => request<InstalledModel[]>("/installed/models"),
+  installedDetail: (model: string, tag: string) =>
+    request<ModelDetail>(`/installed/detail?model=${encodeURIComponent(model)}&tag=${encodeURIComponent(tag)}`),
+  deleteInstalled: (model: string, tag: string) =>
+    request<{ freedBytes: number }>(`/installed?model=${encodeURIComponent(model)}&tag=${encodeURIComponent(tag)}`, { method: "DELETE" }),
+  dashboard: () => request<Dashboard>("/dashboard"),
   exportModel: (model: string, tag: string) =>
     request<{ name: string }>("/installed/export", { method: "POST", body: JSON.stringify({ model, tag }) }),
   transfers: () => request<Transfers>("/transfers"),

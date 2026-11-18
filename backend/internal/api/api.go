@@ -13,9 +13,11 @@ import (
 	"github.com/dagdan/ai-model-downloader/internal/downloader"
 	"github.com/dagdan/ai-model-downloader/internal/installer"
 	"github.com/dagdan/ai-model-downloader/internal/library"
+	"github.com/dagdan/ai-model-downloader/internal/ollama"
 	"github.com/dagdan/ai-model-downloader/internal/registry"
 	"github.com/dagdan/ai-model-downloader/internal/reveal"
 	"github.com/dagdan/ai-model-downloader/internal/store"
+	"github.com/dagdan/ai-model-downloader/internal/sysinfo"
 	"github.com/dagdan/ai-model-downloader/internal/transfer"
 )
 
@@ -27,6 +29,8 @@ type Server struct {
 	manager *downloader.Manager
 	tr      *transfer.Manager
 	rv      reveal.Client
+	ollama  *ollama.Client
+	sys     sysinfo.Client
 }
 
 type downloadView struct {
@@ -35,7 +39,8 @@ type downloadView struct {
 }
 
 func New(cfg config.Config, s *store.Store, lib *library.Client, reg *registry.Client, m *downloader.Manager, tr *transfer.Manager, rv reveal.Client) http.Handler {
-	srv := &Server{cfg: cfg, store: s, lib: lib, reg: reg, manager: m, tr: tr, rv: rv}
+	srv := &Server{cfg: cfg, store: s, lib: lib, reg: reg, manager: m, tr: tr, rv: rv,
+		ollama: ollama.New(cfg.OllamaURL), sys: sysinfo.Client{Dir: cfg.ModelsDir, HelperURL: cfg.RevealURL}}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
 	mux.HandleFunc("GET /api/library", srv.library)
@@ -43,6 +48,10 @@ func New(cfg config.Config, s *store.Store, lib *library.Client, reg *registry.C
 	mux.HandleFunc("GET /api/models/{ns}/{name}/tags", srv.tags)
 	mux.HandleFunc("GET /api/installed", srv.installed)
 	mux.HandleFunc("GET /api/installed/models", srv.installedModels)
+	mux.HandleFunc("GET /api/installed/detail", srv.installedDetail)
+	mux.HandleFunc("DELETE /api/installed", srv.deleteInstalled)
+	mux.HandleFunc("GET /api/dashboard", srv.dashboard)
+	mux.HandleFunc("GET /api/live", srv.live)
 	mux.HandleFunc("POST /api/installed/export", srv.export)
 	mux.HandleFunc("GET /api/transfers", srv.listTransfers)
 	mux.HandleFunc("POST /api/transfers/open", srv.openTransferDir)
@@ -226,11 +235,11 @@ func parseID(r *http.Request) (int64, error) {
 
 func statusFor(err error) int {
 	switch {
-	case errors.Is(err, store.ErrNotFound), errors.Is(err, transfer.ErrNotFound):
+	case errors.Is(err, store.ErrNotFound), errors.Is(err, transfer.ErrNotFound), errors.Is(err, installer.ErrNotInstalled):
 		return 404
 	case errors.Is(err, downloader.ErrBadState), errors.Is(err, transfer.ErrBadState), errors.Is(err, transfer.ErrBusy):
 		return 409
-	case errors.Is(err, transfer.ErrInvalid):
+	case errors.Is(err, transfer.ErrInvalid), errors.Is(err, installer.ErrInvalidName):
 		return 400
 	case errors.Is(err, reveal.ErrFailed):
 		return http.StatusBadGateway

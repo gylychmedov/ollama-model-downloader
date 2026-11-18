@@ -15,7 +15,7 @@ Resumable downloader and installer for Ollama models, built for unstable connect
 open http://localhost:3470
 ```
 
-`start.sh` starts Docker Desktop if it isn't running, restarts the stack and waits until the backend is healthy. It reads an optional `.env` file for the variables below.
+`start.sh` starts Docker Desktop if it isn't running, rebuilds and recreates only the containers that changed, then waits until the backend is healthy. It reads an optional `.env` file for the variables below.
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -25,6 +25,7 @@ open http://localhost:3470
 | `API_PORT` | `8470` | Backend port |
 | `DB_PORT` | `5470` | Postgres port |
 | `REVEAL_PORT` | `8471` | Host reveal helper port (loopback only) |
+| `OLLAMA_URL` | `http://host.docker.internal:11434` | Ollama server, used by the dashboard to show loaded models |
 
 Partial files are stored in `<models dir>/.downloader-staging/<id>/`. Because this is on the same disk as Ollama's store, installing is an instant rename rather than a copy.
 
@@ -53,7 +54,10 @@ cd frontend && npm install && npm run dev  # :3471, proxies /api to :8470
 | GET | `/api/library?q=` | Library or search results |
 | GET | `/api/models/{ns}/{name}/tags` | Tags with param size, size, context |
 | GET | `/api/installed` | Models installed in Ollama |
-| GET | `/api/installed/models` | Installed models with size and date |
+| GET | `/api/installed/models` | Installed models with size, date, family, parameters and quantization |
+| GET | `/api/installed/detail?model=&tag=` | Layers, architecture (read from the GGUF header), capabilities and parameters of one model |
+| DELETE | `/api/installed?model=&tag=` | Deletes a model and the blobs no other model or pending download uses |
+| GET | `/api/dashboard` | Host CPU, memory and disk, Ollama status, storage used and installed models |
 | POST | `/api/installed/export` | `{"model":"library/gemma3","tag":"27b"}`, prepares a transfer folder and reveals it |
 | GET | `/api/transfers` | Transfer folder path and the model folders in it |
 | POST | `/api/transfers/open` | Open the transfer folder in Finder |

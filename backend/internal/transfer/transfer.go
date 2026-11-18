@@ -154,6 +154,29 @@ func (m *Manager) List() []Package {
 	return out
 }
 
+// ExternalDigests returns blobs that packages rely on Ollama's store for, because the package has no copy.
+func (m *Manager) ExternalDigests() map[string]bool {
+	out := map[string]bool{}
+	entries, _ := os.ReadDir(m.dir)
+	for _, e := range entries {
+		if !e.IsDir() || strings.HasPrefix(e.Name(), ".") {
+			continue
+		}
+		_, list, err := m.load(e.Name())
+		if err != nil {
+			continue
+		}
+		for _, en := range list {
+			for _, l := range en.man.AllBlobs() {
+				if _, err := os.Stat(filepath.Join(m.dir, e.Name(), "blobs", installer.BlobFileName(l.Digest))); err != nil {
+					out[l.Digest] = true
+				}
+			}
+		}
+	}
+	return out
+}
+
 func (m *Manager) load(name string) (*Package, []entry, error) {
 	if !validSeg.MatchString(name) {
 		return nil, nil, ErrNotFound
