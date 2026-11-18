@@ -56,6 +56,8 @@ func New(cfg config.Config, s *store.Store, lib *library.Client, reg *registry.C
 	mux.HandleFunc("GET /api/updates", srv.listUpdates)
 	mux.HandleFunc("GET /api/dashboard", srv.dashboard)
 	mux.HandleFunc("GET /api/live", srv.live)
+	mux.HandleFunc("GET /api/cleanup", srv.cleanupScan)
+	mux.HandleFunc("POST /api/cleanup", srv.cleanupRun)
 	mux.HandleFunc("POST /api/installed/export", srv.export)
 	mux.HandleFunc("GET /api/transfers", srv.listTransfers)
 	mux.HandleFunc("POST /api/transfers/open", srv.openTransferDir)
