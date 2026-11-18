@@ -36,18 +36,10 @@ func (s *Server) deleteInstalled(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	model, tag := r.URL.Query().Get("model"), r.URL.Query().Get("tag")
 
-	keep := s.tr.ExternalDigests()
-	list, err := s.store.List(ctx)
+	keep, err := s.manager.KeepDigests(ctx)
 	if err != nil {
 		writeError(w, 500, err)
 		return
-	}
-	for _, d := range list {
-		if d.Status != store.StatusInstalled {
-			for _, b := range d.Blobs {
-				keep[b.Digest] = true
-			}
-		}
 	}
 
 	name := ollamaName(model, tag)
@@ -66,6 +58,31 @@ func (s *Server) deleteInstalled(w http.ResponseWriter, r *http.Request) {
 		_ = s.store.Delete(ctx, d.ID)
 	}
 	writeJSON(w, 200, map[string]int64{"freedBytes": freed})
+}
+
+func (s *Server) listUpdates(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, 200, s.updates.Check(r.Context(), r.URL.Query().Get("refresh") == "1"))
+}
+
+func (s *Server) updateInstalled(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Model string `json:"model"`
+		Tag   string `json:"tag"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, 400, err)
+		return
+	}
+	d, err := s.manager.Update(r.Context(), body.Model, body.Tag)
+	if err != nil {
+		code := statusFor(err)
+		if code == 500 {
+			code = http.StatusBadGateway
+		}
+		writeError(w, code, err)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, d)
 }
 
 type dashboardView struct {

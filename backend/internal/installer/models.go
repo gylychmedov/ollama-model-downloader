@@ -124,6 +124,11 @@ func Remove(modelsDir, host, model, tag string, keep func(digest string) bool) (
 	}
 	pruneEmptyDirs(filepath.Dir(p), filepath.Join(modelsDir, "manifests"))
 
+	return Prune(modelsDir, man, keep), nil
+}
+
+// Prune deletes the blobs of man that no manifest references any more, except those keep returns true for.
+func Prune(modelsDir string, man registry.Manifest, keep func(digest string) bool) int64 {
 	refs := BlobRefs(modelsDir)
 	var freed int64
 	for _, l := range uniqueBlobs(man) {
@@ -139,7 +144,44 @@ func Remove(modelsDir, host, model, tag string, keep func(digest string) bool) (
 			freed += fi.Size()
 		}
 	}
-	return freed, nil
+	return freed
+}
+
+func LocalManifest(modelsDir, host, model, tag string) (registry.Manifest, error) {
+	man, _, err := readManifest(ManifestPath(modelsDir, host, model, tag))
+	if errors.Is(err, fs.ErrNotExist) {
+		return man, ErrNotInstalled
+	}
+	return man, err
+}
+
+// SameBlobs reports whether two manifests reference exactly the same blobs.
+func SameBlobs(a, b registry.Manifest) bool {
+	ua, ub := uniqueBlobs(a), uniqueBlobs(b)
+	if len(ua) != len(ub) {
+		return false
+	}
+	set := map[string]bool{}
+	for _, l := range ua {
+		set[l.Digest] = true
+	}
+	for _, l := range ub {
+		if !set[l.Digest] {
+			return false
+		}
+	}
+	return true
+}
+
+// MissingBytes is the size of the blobs of man not yet in the store.
+func MissingBytes(modelsDir string, man registry.Manifest) int64 {
+	var n int64
+	for _, l := range uniqueBlobs(man) {
+		if !BlobExists(modelsDir, l.Digest, l.Size) {
+			n += l.Size
+		}
+	}
+	return n
 }
 
 func pruneEmptyDirs(dir, stop string) {

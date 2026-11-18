@@ -76,3 +76,40 @@ func TestRemoveRejectsBadNames(t *testing.T) {
 		t.Errorf("missing model: err = %v", err)
 	}
 }
+
+func TestUpdateComparesBlobsAndPrunesOldOnes(t *testing.T) {
+	dir := t.TempDir()
+	install(t, dir, "library/a", "1b", digest('1'), digest('2'), digest('6'))
+	install(t, dir, "library/b", "2b", digest('3'), digest('2'))
+	old, err := LocalManifest(dir, host, "library/a", "1b")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	reordered := registry.Manifest{Config: old.Layers[1], Layers: []registry.Layer{old.Layers[0], old.Config}}
+	if !SameBlobs(old, reordered) {
+		t.Error("same blobs in another order reported as an update")
+	}
+	next := registry.Manifest{Config: old.Config, Layers: []registry.Layer{{Digest: digest('5'), Size: 7}}}
+	if SameBlobs(old, next) {
+		t.Error("changed layer not detected")
+	}
+	if n := MissingBytes(dir, next); n != 7 {
+		t.Errorf("missing bytes = %d, want 7", n)
+	}
+
+	install(t, dir, "library/a", "1b", digest('1'), digest('5'))
+	Prune(dir, old, func(string) bool { return false })
+	if !exists(blobPath(dir, digest('1'))) || !exists(blobPath(dir, digest('5'))) {
+		t.Error("blob of the new version was deleted")
+	}
+	if !exists(blobPath(dir, digest('2'))) {
+		t.Error("blob still used by library/b was deleted")
+	}
+	if exists(blobPath(dir, digest('6'))) {
+		t.Error("blob only the old version used was kept")
+	}
+	if _, err := LocalManifest(dir, host, "library/none", "1"); err != ErrNotInstalled {
+		t.Errorf("missing model: err = %v", err)
+	}
+}

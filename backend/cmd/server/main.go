@@ -36,13 +36,14 @@ func main() {
 	defer st.Close()
 
 	reg := registry.New(cfg.RegistryURL)
+	rv := reveal.Client{ModelsDir: cfg.ModelsDir, HelperURL: cfg.RevealURL}
+	tr := transfer.New(cfg.ModelsDir, cfg.HostModelsDir, reg.Host(), rv)
+
 	mgr := downloader.New(st, reg, cfg)
+	mgr.External = tr.ExternalDigests
 	if err := mgr.ResumeInterrupted(ctx); err != nil {
 		log.Printf("resume interrupted downloads: %v", err)
 	}
-
-	rv := reveal.Client{ModelsDir: cfg.ModelsDir, HelperURL: cfg.RevealURL}
-	tr := transfer.New(cfg.ModelsDir, cfg.HostModelsDir, reg.Host(), rv)
 
 	lib := library.New(cfg.OllamaWebURL, st)
 	go lib.Prewarm(ctx)

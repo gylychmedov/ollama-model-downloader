@@ -19,6 +19,7 @@ import (
 	"github.com/dagdan/ai-model-downloader/internal/store"
 	"github.com/dagdan/ai-model-downloader/internal/sysinfo"
 	"github.com/dagdan/ai-model-downloader/internal/transfer"
+	"github.com/dagdan/ai-model-downloader/internal/updates"
 )
 
 type Server struct {
@@ -31,6 +32,7 @@ type Server struct {
 	rv      reveal.Client
 	ollama  *ollama.Client
 	sys     sysinfo.Client
+	updates *updates.Checker
 }
 
 type downloadView struct {
@@ -40,7 +42,7 @@ type downloadView struct {
 
 func New(cfg config.Config, s *store.Store, lib *library.Client, reg *registry.Client, m *downloader.Manager, tr *transfer.Manager, rv reveal.Client) http.Handler {
 	srv := &Server{cfg: cfg, store: s, lib: lib, reg: reg, manager: m, tr: tr, rv: rv,
-		ollama: ollama.New(cfg.OllamaURL), sys: sysinfo.Client{Dir: cfg.ModelsDir, HelperURL: cfg.RevealURL}}
+		ollama: ollama.New(cfg.OllamaURL), sys: sysinfo.Client{Dir: cfg.ModelsDir, HelperURL: cfg.RevealURL}, updates: updates.New(reg, cfg.ModelsDir)}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
 	mux.HandleFunc("GET /api/library", srv.library)
@@ -50,6 +52,8 @@ func New(cfg config.Config, s *store.Store, lib *library.Client, reg *registry.C
 	mux.HandleFunc("GET /api/installed/models", srv.installedModels)
 	mux.HandleFunc("GET /api/installed/detail", srv.installedDetail)
 	mux.HandleFunc("DELETE /api/installed", srv.deleteInstalled)
+	mux.HandleFunc("POST /api/installed/update", srv.updateInstalled)
+	mux.HandleFunc("GET /api/updates", srv.listUpdates)
 	mux.HandleFunc("GET /api/dashboard", srv.dashboard)
 	mux.HandleFunc("GET /api/live", srv.live)
 	mux.HandleFunc("POST /api/installed/export", srv.export)

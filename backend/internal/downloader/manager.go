@@ -60,6 +60,9 @@ type Manager struct {
 	mu     sync.Mutex
 	jobs   map[int64]*job
 	wg     sync.WaitGroup
+
+	// External lists blobs that something outside the downloader still needs.
+	External func() map[string]bool
 }
 
 func New(s *store.Store, reg *registry.Client, cfg config.Config) *Manager {
@@ -112,6 +115,41 @@ func (m *Manager) Create(ctx context.Context, model, tag string) (*store.Downloa
 	}
 	m.start(d.ID)
 	return m.store.Get(ctx, d.ID)
+}
+
+// Update downloads the registry's current version of an installed model, reusing blobs already on disk.
+func (m *Manager) Update(ctx context.Context, model, tag string) (*store.Download, error) {
+	if _, err := installer.LocalManifest(m.cfg.ModelsDir, m.reg.Host(), model, tag); err != nil {
+		return nil, err
+	}
+	if d, err := m.store.FindByModelTag(ctx, model, tag); err == nil && d.Status == store.StatusInstalled {
+		if err := m.store.Delete(ctx, d.ID); err != nil {
+			return nil, err
+		}
+	} else if err != nil && !errors.Is(err, store.ErrNotFound) {
+		return nil, err
+	}
+	return m.Create(ctx, model, tag)
+}
+
+// KeepDigests lists blobs that unfinished downloads or other features still rely on.
+func (m *Manager) KeepDigests(ctx context.Context) (map[string]bool, error) {
+	keep := map[string]bool{}
+	if m.External != nil {
+		keep = m.External()
+	}
+	list, err := m.store.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, d := range list {
+		if d.Status != store.StatusInstalled {
+			for _, b := range d.Blobs {
+				keep[b.Digest] = true
+			}
+		}
+	}
+	return keep, nil
 }
 
 func (m *Manager) ResumeInterrupted(ctx context.Context) error {
@@ -218,6 +256,7 @@ func (m *Manager) Install(ctx context.Context, id int64) error {
 	go func() {
 		defer m.wg.Done()
 		bg := context.Background()
+		old, oldErr := installer.LocalManifest(m.cfg.ModelsDir, m.reg.Host(), d.Model, d.Tag)
 		if err := installer.Install(m.cfg.ModelsDir, m.stagingDir(id), m.reg.Host(), d); err != nil {
 			log.Printf("install %d failed: %v", id, err)
 			_ = m.store.SetStatus(bg, id, store.StatusCompleted, err.Error())
@@ -226,6 +265,12 @@ func (m *Manager) Install(ctx context.Context, id int64) error {
 		_ = os.RemoveAll(m.stagingDir(id))
 		_ = m.store.SetStatus(bg, id, store.StatusInstalled, "")
 		log.Printf("installed %s:%s", d.Model, d.Tag)
+		if oldErr == nil {
+			if keep, err := m.KeepDigests(bg); err == nil {
+				freed := installer.Prune(m.cfg.ModelsDir, old, func(dg string) bool { return keep[dg] })
+				log.Printf("updated %s:%s, freed %d bytes of old files", d.Model, d.Tag, freed)
+			}
+		}
 	}()
 	return nil
 }
@@ -305,6 +350,11 @@ func (m *Manager) run(ctx context.Context, j *job) {
 	}
 	_ = m.store.SetStatus(bg, j.id, store.StatusCompleted, "")
 	log.Printf("download %d (%s:%s) completed", j.id, d.Model, d.Tag)
+	if _, err := installer.LocalManifest(m.cfg.ModelsDir, m.reg.Host(), d.Model, d.Tag); err == nil {
+		if err := m.Install(bg, j.id); err != nil {
+			log.Printf("auto-install update %d: %v", j.id, err)
+		}
+	}
 }
 
 func (m *Manager) sampleSpeed(ctx context.Context, j *job) {
