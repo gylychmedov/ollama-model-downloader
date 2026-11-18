@@ -92,7 +92,12 @@ CREATE TABLE IF NOT EXISTS usage_tracking (
 	id         BOOLEAN PRIMARY KEY DEFAULT true,
 	started_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-INSERT INTO usage_tracking DEFAULT VALUES ON CONFLICT DO NOTHING;`
+INSERT INTO usage_tracking DEFAULT VALUES ON CONFLICT DO NOTHING;
+CREATE TABLE IF NOT EXISTS settings (
+	id   BOOLEAN PRIMARY KEY DEFAULT true,
+	data JSONB NOT NULL DEFAULT '{}'
+);
+INSERT INTO settings DEFAULT VALUES ON CONFLICT DO NOTHING;`
 
 func Open(ctx context.Context, url string) (*Store, error) {
 	var pool *pgxpool.Pool
@@ -289,4 +294,25 @@ func (s *Store) Usage(ctx context.Context) (map[string]time.Time, time.Time, err
 		out[name] = at
 	}
 	return out, since, rows.Err()
+}
+
+type Settings struct {
+	AutoInstall   bool `json:"autoInstall"`
+	NotifyDesktop bool `json:"notifyDesktop"`
+}
+
+func (s *Store) Settings(ctx context.Context) (Settings, error) {
+	var out Settings
+	var data []byte
+	if err := s.pool.QueryRow(ctx, `SELECT data FROM settings`).Scan(&data); err != nil {
+		return out, err
+	}
+	err := json.Unmarshal(data, &out)
+	return out, err
+}
+
+func (s *Store) SaveSettings(ctx context.Context, v Settings) error {
+	data, _ := json.Marshal(v)
+	_, err := s.pool.Exec(ctx, `UPDATE settings SET data = $1`, data)
+	return err
 }

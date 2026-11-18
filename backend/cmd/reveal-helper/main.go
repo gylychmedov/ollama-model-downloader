@@ -1,5 +1,5 @@
 // reveal-helper runs on the host (outside Docker) so the backend can open
-// downloaded files in Finder / Explorer and read host CPU, memory and disk info. It only accepts paths inside the
+// downloaded files in Finder / Explorer, show desktop notifications and read host CPU, memory and disk info. It only accepts paths inside the
 // Ollama models dir and only listens on loopback.
 package main
 
@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/dagdan/ai-model-downloader/internal/notify"
 	"github.com/dagdan/ai-model-downloader/internal/reveal"
 	"github.com/dagdan/ai-model-downloader/internal/sysinfo"
 )
@@ -46,6 +47,26 @@ func main() {
 		}
 		if err := reveal.Open(p, body.Select); err != nil {
 			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	mux.HandleFunc("POST /notify", func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+			http.Error(w, "expected application/json", http.StatusUnsupportedMediaType)
+			return
+		}
+		var body struct {
+			Title string `json:"title"`
+			Body  string `json:"body"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err := notify.Show(body.Title, body.Body); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)

@@ -15,6 +15,7 @@ import (
 	"github.com/dagdan/ai-model-downloader/internal/config"
 	"github.com/dagdan/ai-model-downloader/internal/downloader"
 	"github.com/dagdan/ai-model-downloader/internal/library"
+	"github.com/dagdan/ai-model-downloader/internal/notify"
 	"github.com/dagdan/ai-model-downloader/internal/ollama"
 	"github.com/dagdan/ai-model-downloader/internal/registry"
 	"github.com/dagdan/ai-model-downloader/internal/reveal"
@@ -43,6 +44,17 @@ func main() {
 
 	mgr := downloader.New(st, reg, cfg)
 	mgr.External = tr.ExternalDigests
+	nc := notify.Client{HelperURL: cfg.RevealURL}
+	mgr.Notify = func(title, body string) {
+		go func() {
+			if set, err := st.Settings(ctx); err != nil || !set.NotifyDesktop {
+				return
+			}
+			if err := nc.Send(ctx, title, body); err != nil {
+				log.Printf("notify: %v", err)
+			}
+		}()
+	}
 	if err := mgr.ResumeInterrupted(ctx); err != nil {
 		log.Printf("resume interrupted downloads: %v", err)
 	}

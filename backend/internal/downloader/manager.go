@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -63,6 +64,18 @@ type Manager struct {
 
 	// External lists blobs that something outside the downloader still needs.
 	External func() map[string]bool
+	// Notify, when set, is told when a download finishes, fails or gets installed.
+	Notify func(title, body string)
+}
+
+func (m *Manager) notify(title, body string) {
+	if m.Notify != nil {
+		m.Notify(title, body)
+	}
+}
+
+func displayName(d *store.Download) string {
+	return strings.TrimPrefix(d.Model, "library/") + ":" + d.Tag
 }
 
 func New(s *store.Store, reg *registry.Client, cfg config.Config) *Manager {
@@ -260,11 +273,13 @@ func (m *Manager) Install(ctx context.Context, id int64) error {
 		if err := installer.Install(m.cfg.ModelsDir, m.stagingDir(id), m.reg.Host(), d); err != nil {
 			log.Printf("install %d failed: %v", id, err)
 			_ = m.store.SetStatus(bg, id, store.StatusCompleted, err.Error())
+			m.notify("Install failed", displayName(d)+": "+err.Error())
 			return
 		}
 		_ = os.RemoveAll(m.stagingDir(id))
 		_ = m.store.SetStatus(bg, id, store.StatusInstalled, "")
 		log.Printf("installed %s:%s", d.Model, d.Tag)
+		m.notify("Model installed", displayName(d)+" is ready to use in Ollama")
 		if oldErr == nil {
 			if keep, err := m.KeepDigests(bg); err == nil {
 				freed := installer.Prune(m.cfg.ModelsDir, old, func(dg string) bool { return keep[dg] })
@@ -345,15 +360,24 @@ func (m *Manager) run(ctx context.Context, j *job) {
 			}
 			log.Printf("download %d failed: %v", j.id, err)
 			_ = m.store.SetStatus(bg, j.id, store.StatusError, err.Error())
+			m.notify("Download failed", displayName(d)+": "+err.Error())
 			return
 		}
 	}
 	_ = m.store.SetStatus(bg, j.id, store.StatusCompleted, "")
 	log.Printf("download %d (%s:%s) completed", j.id, d.Model, d.Tag)
-	if _, err := installer.LocalManifest(m.cfg.ModelsDir, m.reg.Host(), d.Model, d.Tag); err == nil {
-		if err := m.Install(bg, j.id); err != nil {
-			log.Printf("auto-install update %d: %v", j.id, err)
-		}
+	_, oldErr := installer.LocalManifest(m.cfg.ModelsDir, m.reg.Host(), d.Model, d.Tag)
+	settings, err := m.store.Settings(bg)
+	if err != nil {
+		log.Printf("read settings: %v", err)
+	}
+	if oldErr != nil && !settings.AutoInstall {
+		m.notify("Download complete", displayName(d)+" is ready to install")
+		return
+	}
+	if err := m.Install(bg, j.id); err != nil {
+		log.Printf("auto-install %d: %v", j.id, err)
+		m.notify("Install failed", displayName(d)+": "+err.Error())
 	}
 }
 
