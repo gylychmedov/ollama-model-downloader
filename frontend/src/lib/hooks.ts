@@ -37,6 +37,28 @@ export function useInstalledModels() {
   return useQuery({ queryKey: ["installed-models"], queryFn: api.installedModels, refetchInterval: 10000 });
 }
 
+export function useUpdates() {
+  return useQuery({ queryKey: ["updates"], queryFn: () => api.updates(), staleTime: 5 * 60_000, refetchInterval: 30 * 60_000 });
+}
+
+export function useCheckUpdates() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.updates(true),
+    onSuccess: (data) => qc.setQueryData(["updates"], data),
+    onError: (e: Error) => alert(e.message),
+  });
+}
+
+export function useUpdateModel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { model: string; tag: string }) => api.updateModel(v.model, v.tag),
+    onError: (e: Error) => alert(e.message),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["downloads"] }),
+  });
+}
+
 export function useDashboard() {
   return useQuery({ queryKey: ["dashboard"], queryFn: api.dashboard, refetchInterval: 10000 });
 }

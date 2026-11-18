@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
 import { displayName, exportName, type InstalledModel, type TransferPackage } from "../lib/api";
 import { formatBytes } from "../lib/format";
-import { useInstalledModels, useTransferActions, useTransfers } from "../lib/hooks";
+import { useCheckUpdates, useInstalledModels, useTransferActions, useTransfers, useUpdates } from "../lib/hooks";
 import ProgressBar from "../components/ProgressBar";
 import DeleteModelButton from "../components/DeleteModelButton";
+import UpdateButton, { UpdateBadge } from "../components/UpdateButton";
 import { Card, EmptyState, ModelAvatar } from "../components/ui";
-import { IconAlert, IconBox, IconCopy, IconFolder, IconTerminal, IconTrash, IconUsb } from "../components/icons";
+import { IconAlert, IconBox, IconCopy, IconFolder, IconRefresh, IconTerminal, IconTrash, IconUsb } from "../components/icons";
 
 const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform || navigator.userAgent);
 const finder = isMac ? "Finder" : "the file manager";
@@ -49,14 +50,18 @@ function ModelRow({ m, pkg }: { m: InstalledModel; pkg?: TransferPackage }) {
       <div className="flex flex-wrap items-center gap-3">
         <ModelAvatar name={m.model} size="sm" />
         <div className="min-w-0 flex-1">
-          <Link to={`/installed/${m.model}/${m.tag}`} className="block truncate font-semibold tracking-tight hover:text-emerald-400">{name}</Link>
+          <div className="flex min-w-0 items-center gap-2">
+            <Link to={`/installed/${m.model}/${m.tag}`} className="truncate font-semibold tracking-tight hover:text-emerald-400">{name}</Link>
+            <UpdateBadge model={m.model} tag={m.tag} />
+          </div>
           <div className="text-xs text-zinc-500">
             {formatBytes(m.size)}
             {m.parameterSize && ` · ${m.parameterSize}`}
             {m.quantization && ` · ${m.quantization}`} · installed {new Date(m.modifiedAt).toLocaleDateString()}
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <UpdateButton model={m.model} tag={m.tag} />
           {ready && (
             <button disabled={a.reveal.isPending} onClick={() => a.reveal.mutate(pkg.name)} className={`${btn} border border-white/10 bg-white/5 hover:bg-white/10`}>
               <IconFolder /> {isMac ? "Show in Finder" : "Show in folder"}
@@ -108,6 +113,34 @@ function ModelRow({ m, pkg }: { m: InstalledModel; pkg?: TransferPackage }) {
   );
 }
 
+function ago(iso: string) {
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
+  return min < 1 ? "just now" : min < 60 ? `${min} min ago` : `${Math.round(min / 60)} h ago`;
+}
+
+function CheckUpdates() {
+  const { data, isFetching } = useUpdates();
+  const check = useCheckUpdates();
+  const busy = check.isPending || (isFetching && !data);
+  const count = data?.filter((u) => u.available).length ?? 0;
+  const checked = data?.map((u) => u.checkedAt).filter((t) => t && !t.startsWith("0001")).sort()[0];
+  return (
+    <div className="flex items-center gap-3">
+      <span className="text-xs text-zinc-500">
+        {busy ? "Checking the registry…" : data && (count ? `${count} update${count === 1 ? "" : "s"} available` : "All models up to date")}
+        {!busy && checked && ` · checked ${ago(checked)}`}
+      </span>
+      <button
+        disabled={busy}
+        onClick={() => check.mutate()}
+        className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-sm font-medium transition hover:bg-white/10 disabled:opacity-50"
+      >
+        <IconRefresh className={busy ? "animate-spin" : ""} /> Check for updates
+      </button>
+    </div>
+  );
+}
+
 export default function InstalledPage() {
   const { data, isLoading, error } = useInstalledModels();
   const { data: transfers } = useTransfers();
@@ -116,11 +149,14 @@ export default function InstalledPage() {
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-semibold tracking-tight">Installed models</h1>
-        <p className="mt-1 text-zinc-400">
-          {data ? `${data.length} model${data.length === 1 ? "" : "s"} in Ollama · ${formatBytes(total)}` : "Models available to ollama run"}
-        </p>
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Installed models</h1>
+          <p className="mt-1 text-zinc-400">
+            {data ? `${data.length} model${data.length === 1 ? "" : "s"} in Ollama · ${formatBytes(total)}` : "Models available to ollama run"}
+          </p>
+        </div>
+        {!!data?.length && <CheckUpdates />}
       </div>
 
       <Steps dir={transfers?.dir} />

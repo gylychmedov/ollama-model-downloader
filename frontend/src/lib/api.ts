@@ -145,6 +145,16 @@ export type TransferPackage = {
   modifiedAt: string;
 };
 
+export type UpdateStatus = {
+  name: string;
+  model: string;
+  tag: string;
+  available: boolean;
+  downloadBytes: number;
+  checkedAt: string;
+  error?: string;
+};
+
 export type Transfers = { dir: string; packages: TransferPackage[] };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -177,6 +187,9 @@ export const api = {
     request<ModelDetail>(`/installed/detail?model=${encodeURIComponent(model)}&tag=${encodeURIComponent(tag)}`),
   deleteInstalled: (model: string, tag: string) =>
     request<{ freedBytes: number }>(`/installed?model=${encodeURIComponent(model)}&tag=${encodeURIComponent(tag)}`, { method: "DELETE" }),
+  updates: (refresh = false) => request<UpdateStatus[]>(`/updates${refresh ? "?refresh=1" : ""}`),
+  updateModel: (model: string, tag: string) =>
+    request<Download>("/installed/update", { method: "POST", body: JSON.stringify({ model, tag }) }),
   dashboard: () => request<Dashboard>("/dashboard"),
   exportModel: (model: string, tag: string) =>
     request<{ name: string }>("/installed/export", { method: "POST", body: JSON.stringify({ model, tag }) }),

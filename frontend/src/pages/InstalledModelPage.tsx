@@ -7,6 +7,7 @@ import { useDashboard, useInstalledDetail, useLiveStats } from "../lib/hooks";
 import { fitStyles, formatTokens, memoryFit, strengths } from "../lib/insights";
 import { CapabilityBadge, Card, EmptyState, ModelAvatar } from "../components/ui";
 import DeleteModelButton from "../components/DeleteModelButton";
+import UpdateButton, { UpdateBadge } from "../components/UpdateButton";
 import { IconAlert, IconArrowLeft, IconBolt, IconChevronDown, IconExternal, IconStar, IconTerminal } from "../components/icons";
 
 function Spec({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
@@ -76,6 +77,7 @@ export default function InstalledModelPage() {
             <h1 className="mt-0.5 truncate text-3xl font-semibold tracking-tight">{full}</h1>
             {(info?.summary || a?.name) && <p className="mt-2 max-w-3xl text-sm leading-relaxed text-zinc-400">{info?.summary || a?.name}</p>}
             <div className="mt-3 flex flex-wrap gap-1.5">
+              <UpdateBadge model={model} tag={tag} />
               {caps.map((c) => <CapabilityBadge key={c} cap={c} />)}
               {fit && (
                 <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${fitStyles[fit.level]}`} title={fit.detail}>
@@ -92,7 +94,8 @@ export default function InstalledModelPage() {
           <div className="flex flex-col items-start gap-2 sm:items-end">
             <div className="text-3xl font-semibold tracking-tight">{formatBytes(d.size)}</div>
             {rank > 0 && <div className="text-xs text-zinc-500">#{rank} largest of {sorted.length} models</div>}
-            <div className="mt-1 flex gap-2">
+            <div className="mt-1 flex flex-wrap gap-2">
+              <UpdateButton model={model} tag={tag} />
               <Link to={`/m/${model}`} className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2 text-sm font-medium transition hover:bg-white/10">
                 <IconExternal /> Library page
               </Link>
