@@ -11,6 +11,7 @@ import { useDownloads, useInstalled, useTransfers } from "./lib/hooks";
 import { formatBytes } from "./lib/format";
 import { IconBox, IconDownload, IconGauge, IconGrid, IconMoon, IconSun } from "./components/icons";
 import { useTheme } from "./lib/theme";
+import { useDownloadNotifications } from "./lib/notifications";
 
 function Header() {
   const { data } = useDownloads();
@@ -129,6 +130,7 @@ function Header() {
 }
 
 export default function App() {
+  useDownloadNotifications();
   return (
     <div className="relative min-h-screen overflow-x-clip">
       <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">

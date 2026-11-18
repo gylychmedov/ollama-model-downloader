@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api, type Dashboard, type Download, type LiveStats, type TransferStatus } from "./api";
+import { api, type Dashboard, type Download, type LiveStats, type Settings, type TransferStatus } from "./api";
 
 const ACTIVE: Download["status"][] = ["downloading", "installing"];
 
@@ -142,5 +142,22 @@ export function useRunCleanup() {
     onSettled: () => {
       for (const key of ["cleanup", "installed", "installed-models", "dashboard", "downloads"]) qc.invalidateQueries({ queryKey: [key] });
     },
+  });
+}
+
+export function useSettings() {
+  return useQuery({ queryKey: ["settings"], queryFn: api.settings, staleTime: 60_000 });
+}
+
+export function useSaveSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: Settings) => api.saveSettings(v),
+    onMutate: (v) => qc.setQueryData(["settings"], v),
+    onError: (e: Error) => {
+      alert(e.message);
+      qc.invalidateQueries({ queryKey: ["settings"] });
+    },
+    onSuccess: (v) => qc.setQueryData(["settings"], v),
   });
 }

@@ -2,12 +2,13 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import DownloadCard from "../components/DownloadCard";
 import ImportPanel from "../components/ImportPanel";
+import NotificationSettings from "../components/NotificationSettings";
 import TransferCard from "../components/TransferCard";
 import { useDownloadActions, useDownloads, useTransfers } from "../lib/hooks";
 import { displayName, type Download } from "../lib/api";
 import { formatBytes, formatDuration } from "../lib/format";
 import { Card, EmptyState, ModelAvatar } from "../components/ui";
-import { IconArrowRight, IconBolt, IconBox, IconCheck, IconClock, IconDownload, IconSearch, IconTrash, IconUsb } from "../components/icons";
+import { IconArrowRight, IconBell, IconBolt, IconBox, IconCheck, IconClock, IconDownload, IconSearch, IconTrash, IconUsb } from "../components/icons";
 
 const heading = "mt-10 mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-zinc-500";
 const IN_PROGRESS: Download["status"][] = ["downloading", "paused", "error", "installing"];
@@ -138,6 +139,9 @@ export default function DownloadsPage() {
         <ImportPanel dir={transfers?.dir} />
         {imports.map((p) => <TransferCard key={p.name} p={p} />)}
       </div>
+
+      <h2 className={heading}><IconBell /> Notifications</h2>
+      <NotificationSettings />
 
       {finished.length > 0 && (
         <>

@@ -175,6 +175,8 @@ export type CleanupReport = { items: CleanupItem[]; unusedDays: number; staleDay
 
 export type CleanupResult = { freedBytes: number; removed: number; skipped: number; errors: string[] };
 
+export type Settings = { autoInstall: boolean; notifyDesktop: boolean };
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     ...init,
@@ -217,6 +219,9 @@ export const api = {
   openTransferDir: () => request<void>("/transfers/open", { method: "POST" }),
   installTransfer: (name: string) => request<void>(`/transfers/${encodeURIComponent(name)}/install`, { method: "POST" }),
   revealTransfer: (name: string) => request<void>(`/transfers/${encodeURIComponent(name)}/reveal`, { method: "POST" }),
+  settings: () => request<Settings>("/settings"),
+  saveSettings: (v: Settings) => request<Settings>("/settings", { method: "PUT", body: JSON.stringify(v) }),
+  testNotification: () => request<void>("/settings/test-notification", { method: "POST" }),
   removeTransfer: (name: string) => request<void>(`/transfers/${encodeURIComponent(name)}`, { method: "DELETE" }),
 };
 
