@@ -47,3 +47,4 @@ export const IconDisk = base(<><ellipse cx="12" cy="6" rx="8" ry="3" /><path d="
 export const IconStar = base(<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />);
 export const IconSun = base(<><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></>);
 export const IconMoon = base(<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />);
+export const IconBroom = base(<><path d="M19 3 11 11" /><path d="M7.5 11.5 12.5 16.5" /><path d="M7.5 11.5c-2 0-4 2-4.5 9.5 7.5-.5 9.5-2.5 9.5-4.5" /><path d="M7 21v-3M10 20.5v-2" /></>);

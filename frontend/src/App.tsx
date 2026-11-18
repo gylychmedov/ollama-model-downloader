@@ -6,6 +6,7 @@ import DownloadsPage from "./pages/DownloadsPage";
 import InstalledPage from "./pages/InstalledPage";
 import InstalledModelPage from "./pages/InstalledModelPage";
 import DashboardPage from "./pages/DashboardPage";
+import CleanupPage from "./pages/CleanupPage";
 import { useDownloads, useInstalled, useTransfers } from "./lib/hooks";
 import { formatBytes } from "./lib/format";
 import { IconBox, IconDownload, IconGauge, IconGrid, IconMoon, IconSun } from "./components/icons";
@@ -144,6 +145,7 @@ export default function App() {
           <Route path="/installed" element={<InstalledPage />} />
           <Route path="/installed/:ns/:name/:tag" element={<InstalledModelPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/cleanup" element={<CleanupPage />} />
         </Routes>
       </main>
     </div>

@@ -6,7 +6,7 @@ import { useDashboard, useLiveStats } from "../lib/hooks";
 import { fitStyles, memoryFit, paramBillions } from "../lib/insights";
 import { Card, EmptyState, ModelAvatar, SizeChip } from "../components/ui";
 import DeleteModelButton from "../components/DeleteModelButton";
-import { IconAlert, IconBox, IconCpu, IconDisk, IconMemory } from "../components/icons";
+import { IconAlert, IconBox, IconBroom, IconCpu, IconDisk, IconMemory } from "../components/icons";
 
 function Tile({ icon, label, value, sub, accent, warn }: { icon: ReactNode; label: string; value: string; sub?: ReactNode; accent: string; warn?: boolean }) {
   return (
@@ -40,7 +40,12 @@ function DiskCard({ d }: { d: Dashboard }) {
     <Card className="p-5 sm:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-semibold tracking-tight">Disk</h2>
-        <span className="truncate font-mono text-xs text-zinc-500" title={d.modelsDir}>{d.modelsDir}</span>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="truncate font-mono text-xs text-zinc-500" title={d.modelsDir}>{d.modelsDir}</span>
+          <Link to="/cleanup" className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium transition hover:bg-white/10">
+            <IconBroom /> Clean up
+          </Link>
+        </div>
       </div>
       {total > 0 ? (
         <>
@@ -66,7 +71,7 @@ function DiskCard({ d }: { d: Dashboard }) {
               <IconAlert className="mt-0.5 shrink-0" />
               <span>
                 Low disk space — only {formatBytes(free)} free.
-                {largest > 0 && free < largest && ` That's less than your largest model (${formatBytes(largest)}).`} Delete models you don't use below.
+                {largest > 0 && free < largest && ` That's less than your largest model (${formatBytes(largest)}).`} <Link to="/cleanup" className="font-medium underline">Clean up disk space</Link> or delete models you don't use below.
               </span>
             </div>
           )}

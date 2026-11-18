@@ -129,3 +129,18 @@ export function useTransferActions() {
     remove: useMutation({ mutationFn: api.removeTransfer, ...opts }),
   };
 }
+
+export function useCleanup(days: number) {
+  return useQuery({ queryKey: ["cleanup", days], queryFn: () => api.cleanup(days), refetchOnWindowFocus: false });
+}
+
+export function useRunCleanup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { ids: string[]; days: number }) => api.runCleanup(v.ids, v.days),
+    onError: (e: Error) => alert(e.message),
+    onSettled: () => {
+      for (const key of ["cleanup", "installed", "installed-models", "dashboard", "downloads"]) qc.invalidateQueries({ queryKey: [key] });
+    },
+  });
+}

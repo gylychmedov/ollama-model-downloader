@@ -158,6 +158,23 @@ export type UpdateStatus = {
 
 export type Transfers = { dir: string; packages: TransferPackage[] };
 
+export type CleanupCategory = "staging" | "orphan" | "unused";
+
+export type CleanupItem = {
+  id: string;
+  category: CleanupCategory;
+  kind: "staging" | "download" | "temp" | "blob" | "model";
+  name: string;
+  detail: string;
+  bytes: number;
+  modifiedAt: string;
+  lastUsed?: string;
+};
+
+export type CleanupReport = { items: CleanupItem[]; unusedDays: number; staleDays: number; trackingSince: string; scannedAt: string };
+
+export type CleanupResult = { freedBytes: number; removed: number; skipped: number; errors: string[] };
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     ...init,
@@ -192,6 +209,8 @@ export const api = {
   updateModel: (model: string, tag: string) =>
     request<Download>("/installed/update", { method: "POST", body: JSON.stringify({ model, tag }) }),
   dashboard: () => request<Dashboard>("/dashboard"),
+  cleanup: (days: number) => request<CleanupReport>(`/cleanup?days=${days}`),
+  runCleanup: (ids: string[], days: number) => request<CleanupResult>("/cleanup", { method: "POST", body: JSON.stringify({ ids, days }) }),
   exportModel: (model: string, tag: string) =>
     request<{ name: string }>("/installed/export", { method: "POST", body: JSON.stringify({ model, tag }) }),
   transfers: () => request<Transfers>("/transfers"),

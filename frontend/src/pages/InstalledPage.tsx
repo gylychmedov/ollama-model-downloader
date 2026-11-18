@@ -12,6 +12,7 @@ import {
   IconAlert,
   IconArrowRight,
   IconBolt,
+  IconBroom,
   IconBox,
   IconCheck,
   IconChevronDown,
@@ -254,7 +255,10 @@ export default function InstalledPage() {
               Everything ready for <code className="font-mono text-zinc-300">ollama run</code>. Keep models current, move them to another machine, or free up space.
             </p>
           </div>
-          {!!data?.length && <CheckUpdates />}
+          <div className="flex flex-wrap items-start gap-2 sm:justify-end">
+            <Link to="/cleanup" className={ghost}><IconBroom /> Free up space</Link>
+            {!!data?.length && <CheckUpdates />}
+          </div>
         </div>
 
         <div className="relative mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
