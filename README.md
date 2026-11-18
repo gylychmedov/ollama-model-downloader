@@ -12,6 +12,7 @@ Resumable downloader and installer for Ollama models, built for unstable connect
 - **Update check** — compares installed models with the registry and shows which ones have a newer version
 - **Verified install** — every blob is checked with sha256, then installed into Ollama's store so `ollama run` works right away
 - **Model library** — see installed models with size, family, quantization and architecture, and delete ones you no longer need
+- **Notifications** — a browser or macOS notification when a download finishes, fails or gets installed, and an option to install into Ollama automatically
 - **Disk cleanup** — lists leftover staging folders, blobs no model uses and models you haven't run in a while, shows how much space each frees, and removes the selected ones in one click
 - **Dashboard** — host CPU, memory and disk, Ollama status and loaded models
 - **Move models between computers** — export a model to a folder, copy it on a USB drive, and install it on another machine
@@ -39,7 +40,9 @@ open http://localhost:3470
 
 Partial files are stored in `<models dir>/.downloader-staging/<id>/`. Because this is on the same disk as Ollama's store, installing is an instant rename rather than a copy.
 
-**Show in Finder** opens the staging folder, or after install selects the model's manifest. The backend runs in Docker and can't open Finder itself, so `start.sh` builds and starts a small host process (`backend/cmd/reveal-helper`) on `127.0.0.1:$REVEAL_PORT`. The helper only opens paths inside the models dir. When you run the backend natively without `REVEAL_URL`, it opens the file manager directly.
+**Notifications** are set up on the Downloads page. Browser notifications are per browser and only work while a tab is open on `localhost` or https. macOS notifications are sent by the backend through the host helper, so they arrive with the browser closed. Turn on one or the other to avoid getting each alert twice. **Install automatically** installs every finished download; updates of installed models are always installed automatically.
+
+**Show in Finder** opens the staging folder, or after install selects the model's manifest. The backend runs in Docker and can't open Finder or show notifications itself, so `start.sh` builds and starts a small host process (`backend/cmd/reveal-helper`) on `127.0.0.1:$REVEAL_PORT`. The helper only opens paths inside the models dir. When you run the backend natively without `REVEAL_URL`, it opens the file manager directly.
 
 ## Move a model to another computer
 
@@ -77,6 +80,9 @@ cd frontend && npm install && npm run dev  # :3471, proxies /api to :8470
 | PUT | `/api/transfers/upload?package=&path=` | Upload one file of a model folder (raw body) |
 | POST | `/api/transfers/{name}/install\|reveal` | |
 | DELETE | `/api/transfers/{name}` | Delete a folder from the transfer folder |
+| GET | `/api/settings` | `{"autoInstall":false,"notifyDesktop":false}` |
+| PUT | `/api/settings` | Saves the same object |
+| POST | `/api/settings/test-notification` | Sends a test macOS notification |
 | GET | `/api/downloads` | Downloads with live speed and retries |
 | POST | `/api/downloads` | `{"model":"bonsai-2","tag":"27b"}` |
 | POST | `/api/downloads/{id}/pause\|resume\|install\|reveal` | |
