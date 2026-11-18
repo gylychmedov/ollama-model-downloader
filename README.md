@@ -12,6 +12,7 @@ Resumable downloader and installer for Ollama models, built for unstable connect
 - **Update check** — compares installed models with the registry and shows which ones have a newer version
 - **Verified install** — every blob is checked with sha256, then installed into Ollama's store so `ollama run` works right away
 - **Model library** — see installed models with size, family, quantization and architecture, and delete ones you no longer need
+- **Disk cleanup** — lists leftover staging folders, blobs no model uses and models you haven't run in a while, shows how much space each frees, and removes the selected ones in one click
 - **Dashboard** — host CPU, memory and disk, Ollama status and loaded models
 - **Move models between computers** — export a model to a folder, copy it on a USB drive, and install it on another machine
 - **Show in Finder** — open a download's or an installed model's files
@@ -67,6 +68,8 @@ cd frontend && npm install && npm run dev  # :3471, proxies /api to :8470
 | GET | `/api/installed/detail?model=&tag=` | Layers, architecture (read from the GGUF header), capabilities and parameters of one model |
 | GET | `/api/updates` | Installed models with a newer version in the registry |
 | DELETE | `/api/installed?model=&tag=` | Deletes a model and the blobs no other model or pending download uses |
+| GET | `/api/cleanup?days=30` | Reclaimable items: unfinished downloads, orphaned blobs, and models unused for `days` |
+| POST | `/api/cleanup` | `{"ids":["blob:sha256:…"],"days":30}`, deletes the items that are still eligible after a fresh scan |
 | GET | `/api/dashboard` | Host CPU, memory and disk, Ollama status, storage used and installed models |
 | POST | `/api/installed/export` | `{"model":"library/gemma3","tag":"27b"}`, prepares a transfer folder and reveals it |
 | GET | `/api/transfers` | Transfer folder path and the model folders in it |
