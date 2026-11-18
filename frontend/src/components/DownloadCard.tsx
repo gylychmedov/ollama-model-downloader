@@ -1,25 +1,26 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { displayName, type Download } from "../lib/api";
 import { formatBytes, formatDuration } from "../lib/format";
 import { useDownloadActions } from "../lib/hooks";
 import ProgressBar from "./ProgressBar";
 import { Card, ModelAvatar } from "./ui";
-import { IconAlert, IconBox, IconFolder, IconPause, IconPlay, IconRefresh, IconTerminal, IconTrash } from "./icons";
+import { IconAlert, IconBox, IconCheck, IconChevronDown, IconFolder, IconPause, IconPlay, IconRefresh, IconTrash } from "./icons";
 
-const statusStyle: Record<string, { cls: string; dot: string }> = {
-  downloading: { cls: "bg-sky-500/10 text-sky-300 ring-sky-500/20", dot: "bg-sky-400 animate-pulse" },
-  verifying: { cls: "bg-violet-500/10 text-violet-300 ring-violet-500/20", dot: "bg-violet-400 animate-pulse" },
-  paused: { cls: "bg-amber-500/10 text-amber-300 ring-amber-500/20", dot: "bg-amber-400" },
-  completed: { cls: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/20", dot: "bg-emerald-400" },
-  installing: { cls: "bg-violet-500/10 text-violet-300 ring-violet-500/20", dot: "bg-violet-400 animate-pulse" },
-  installed: { cls: "bg-white/5 text-zinc-300 ring-white/10", dot: "bg-zinc-400" },
-  error: { cls: "bg-red-500/10 text-red-300 ring-red-500/20", dot: "bg-red-400" },
+const statusStyle: Record<string, { cls: string; dot: string; glow: string }> = {
+  downloading: { cls: "bg-sky-500/10 text-sky-300 ring-sky-500/20", dot: "bg-sky-400 animate-pulse", glow: "bg-sky-500/10" },
+  verifying: { cls: "bg-violet-500/10 text-violet-300 ring-violet-500/20", dot: "bg-violet-400 animate-pulse", glow: "bg-violet-500/10" },
+  paused: { cls: "bg-amber-500/10 text-amber-300 ring-amber-500/20", dot: "bg-amber-400", glow: "bg-amber-500/[0.07]" },
+  completed: { cls: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/20", dot: "bg-emerald-400", glow: "bg-emerald-500/10" },
+  installing: { cls: "bg-violet-500/10 text-violet-300 ring-violet-500/20", dot: "bg-violet-400 animate-pulse", glow: "bg-violet-500/10" },
+  installed: { cls: "bg-white/5 text-zinc-300 ring-white/10", dot: "bg-zinc-400", glow: "bg-white/[0.03]" },
+  error: { cls: "bg-red-500/10 text-red-300 ring-red-500/20", dot: "bg-red-400", glow: "bg-red-500/[0.08]" },
 };
 
-function StatusBadge({ label }: { label: string }) {
+export function StatusBadge({ label }: { label: string }) {
   const s = statusStyle[label] ?? statusStyle.installed;
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ring-1 ring-inset ${s.cls}`}>
+    <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ring-1 ring-inset ${s.cls}`}>
       <span className={`size-1.5 rounded-full ${s.dot}`} />
       {label === "completed" ? "ready to install" : label}
     </span>
@@ -27,12 +28,47 @@ function StatusBadge({ label }: { label: string }) {
 }
 
 const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.platform || navigator.userAgent);
+const btn = "inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition disabled:opacity-50";
+const ghost = `${btn} border border-white/10 bg-white/5 hover:bg-white/10`;
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Spec({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <div className="text-[11px] uppercase tracking-wider text-zinc-500">{label}</div>
-      <div className="mt-0.5 font-mono text-sm text-zinc-200">{value}</div>
+    <div className="min-w-0 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+      <div className="text-[10px] uppercase tracking-wider text-zinc-500">{label}</div>
+      <div className="mt-0.5 truncate font-mono text-sm font-semibold text-white">{value}</div>
+    </div>
+  );
+}
+
+function Files({ blobs }: { blobs: NonNullable<Download["blobs"]> }) {
+  const [open, setOpen] = useState(false);
+  const done = blobs.filter((b) => b.done).length;
+  const sorted = [...blobs].sort((a, b) => b.size - a.size);
+  return (
+    <div className="mt-4 overflow-hidden rounded-xl border border-white/[0.06]">
+      <button onClick={() => setOpen(!open)} className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-400 hover:bg-white/[0.03]">
+        <span>Files · {done}/{blobs.length} done</span>
+        <IconChevronDown className={`transition ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <ul className="divide-y divide-white/[0.04] border-t border-white/[0.06]">
+          {sorted.map((b) => {
+            const kind = b.mediaType.includes("container.image") ? "config" : b.mediaType.slice(b.mediaType.lastIndexOf(".") + 1) || "file";
+            const pct = b.done ? 1 : b.size ? b.downloaded / b.size : 0;
+            return (
+              <li key={b.digest} className="flex items-center gap-3 px-3 py-2 text-xs">
+                <span className="w-20 shrink-0 font-medium capitalize text-zinc-300">{kind}</span>
+                <span className="hidden w-24 shrink-0 font-mono text-zinc-500 sm:inline">{b.digest.slice(7, 19)}</span>
+                <div className="h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+                  <div className={`h-full rounded-full ${b.done ? "bg-emerald-500" : "bg-sky-400"}`} style={{ width: `${pct * 100}%` }} />
+                </div>
+                <span className="w-16 shrink-0 text-right font-mono text-zinc-400">{formatBytes(b.size)}</span>
+                <span className="w-4 shrink-0 text-emerald-400">{b.done && <IconCheck />}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
@@ -47,13 +83,12 @@ export default function DownloadCard({ d, compact }: { d: Download; compact?: bo
   const tone = d.status === "error" ? "red" : d.status === "paused" ? "amber" : d.status === "installed" ? "zinc" : "emerald";
   const busy = a.pause.isPending || a.resume.isPending || a.install.isPending || a.remove.isPending;
   const name = `${displayName(d.model)}:${d.tag}`;
-
-  const btn = "inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition disabled:opacity-50";
+  const downloading = d.status === "downloading";
 
   const actions = (
-    <div className="flex gap-2">
-      {d.status === "downloading" && (
-        <button disabled={busy} onClick={() => a.pause.mutate(d.id)} className={`${btn} border border-white/10 bg-white/5 hover:bg-white/10`}>
+    <>
+      {downloading && (
+        <button disabled={busy} onClick={() => a.pause.mutate(d.id)} className={ghost}>
           <IconPause /> Pause
         </button>
       )}
@@ -68,57 +103,16 @@ export default function DownloadCard({ d, compact }: { d: Download; compact?: bo
         </button>
       )}
       {d.status !== "installing" && (
-        <button
-          disabled={a.reveal.isPending}
-          title={isMac ? "Show in Finder" : "Show in folder"}
-          onClick={() => a.reveal.mutate(d.id)}
-          className={`${btn} ${compact ? "px-2.5" : ""} border border-white/10 bg-white/5 hover:bg-white/10`}
-        >
+        <button disabled={a.reveal.isPending} title={isMac ? "Show in Finder" : "Show in folder"} onClick={() => a.reveal.mutate(d.id)} className={`${ghost} ${compact ? "px-2.5" : ""}`}>
           <IconFolder />
-          {!compact && (isMac ? "Show in Finder" : "Show in folder")}
+          {!compact && (isMac ? "Finder" : "Folder")}
         </button>
       )}
-      {d.status !== "installing" && !compact && (
-        <button
-          disabled={busy}
-          title={d.status === "installed" ? "Clear from list" : "Delete download"}
-          onClick={() => {
-            const msg = d.status === "installed" ? "Remove this entry from the list? The installed model stays in Ollama." : "Cancel and delete the downloaded data?";
-            if (confirm(msg)) a.remove.mutate(d.id);
-          }}
-          className={`${btn} px-2.5 text-zinc-500 hover:bg-red-500/10 hover:text-red-300`}
-        >
-          <IconTrash />
-        </button>
-      )}
-    </div>
+    </>
   );
 
-  const body = (
+  const alerts = (
     <>
-      <div className="flex items-end justify-between gap-3">
-        <div className="font-mono text-2xl font-semibold tracking-tight text-white">
-          {(progress * 100).toFixed(1)}
-          <span className="text-base text-zinc-500">%</span>
-        </div>
-        {compact && <StatusBadge label={label} />}
-      </div>
-      <div className="mt-2">
-        <ProgressBar value={progress} active={d.status === "downloading"} tone={tone} />
-      </div>
-      <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-        <div className="flex gap-6">
-          <Stat label="Size" value={`${formatBytes(d.downloadedBytes)} / ${formatBytes(d.totalBytes)}`} />
-          {d.status === "downloading" && (
-            <>
-              <Stat label="Speed" value={`${formatBytes(speed)}/s`} />
-              <Stat label="ETA" value={formatDuration(eta)} />
-            </>
-          )}
-        </div>
-        {actions}
-      </div>
-
       {reconnecting && (
         <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">
           <IconRefresh className="mt-0.5 shrink-0 animate-spin [animation-duration:2s]" />
@@ -131,30 +125,83 @@ export default function DownloadCard({ d, compact }: { d: Download; compact?: bo
           <span>{d.error}</span>
         </div>
       )}
-      {d.status === "installed" && !compact && (
-        <div className="mt-4 flex items-center gap-2 rounded-xl border border-white/[0.06] bg-black/30 px-3 py-2 font-mono text-xs text-zinc-300">
-          <IconTerminal className="text-emerald-400" />
-          ollama run {name}
-        </div>
-      )}
     </>
   );
 
-  if (compact) return <div className="rounded-xl border border-white/[0.06] bg-black/20 p-4">{body}</div>;
+  if (compact) {
+    return (
+      <div className="rounded-xl border border-white/[0.06] bg-black/20 p-4">
+        <div className="flex items-end justify-between gap-3">
+          <div className="font-mono text-2xl font-semibold tracking-tight text-white">
+            {(progress * 100).toFixed(1)}
+            <span className="text-base text-zinc-500">%</span>
+          </div>
+          <StatusBadge label={label} />
+        </div>
+        <div className="mt-2"><ProgressBar value={progress} active={downloading} tone={tone} /></div>
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+          <div className="flex gap-6 font-mono text-sm text-zinc-200">
+            <span>{formatBytes(d.downloadedBytes)} / {formatBytes(d.totalBytes)}</span>
+            {downloading && <span>{formatBytes(speed)}/s · {formatDuration(eta)}</span>}
+          </div>
+          <div className="flex gap-2">{actions}</div>
+        </div>
+        {alerts}
+      </div>
+    );
+  }
 
+  const s = statusStyle[label] ?? statusStyle.installed;
   return (
-    <Card className="p-5">
-      <div className="mb-5 flex items-center gap-3">
-        <ModelAvatar name={d.model} size="sm" />
+    <Card className="relative overflow-hidden p-5 sm:p-6">
+      <div className={`pointer-events-none absolute -top-20 -right-20 size-56 rounded-full blur-3xl ${s.glow}`} />
+
+      <div className="relative flex items-start gap-4">
+        <ModelAvatar name={d.model} />
         <div className="min-w-0 flex-1">
-          <Link to={`/m/${d.model}`} className="block truncate font-semibold tracking-tight hover:text-emerald-400">
-            {name}
-          </Link>
-          <div className="text-xs text-zinc-500">Added {new Date(d.createdAt).toLocaleString()}</div>
+          <Link to={`/m/${d.model}`} className="block truncate text-lg font-semibold tracking-tight transition hover:text-emerald-400">{name}</Link>
+          <div className="mt-0.5 truncate text-xs text-zinc-500">Added {new Date(d.createdAt).toLocaleString()}</div>
         </div>
         <StatusBadge label={label} />
       </div>
-      {body}
+
+      <div className="relative mt-5 flex items-end justify-between gap-3">
+        <div className="font-mono text-4xl font-semibold tracking-tight text-white">
+          {(progress * 100).toFixed(1)}
+          <span className="text-lg text-zinc-500">%</span>
+        </div>
+        <div className="text-right font-mono text-sm text-zinc-400">
+          {formatBytes(d.downloadedBytes)} <span className="text-zinc-600">/</span> {formatBytes(d.totalBytes)}
+        </div>
+      </div>
+      <div className="relative mt-3"><ProgressBar value={progress} active={downloading} tone={tone} /></div>
+
+      {downloading && (
+        <div className="relative mt-4 grid grid-cols-3 gap-2">
+          <Spec label="Speed" value={`${formatBytes(speed)}/s`} />
+          <Spec label="Time left" value={formatDuration(eta)} />
+          <Spec label="Left" value={formatBytes(Math.max(0, d.totalBytes - d.downloadedBytes))} />
+        </div>
+      )}
+
+      <div className="relative">
+        {alerts}
+        {d.blobs && d.blobs.length > 1 && <Files blobs={d.blobs} />}
+      </div>
+
+      <div className="relative mt-5 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-4">
+        {actions}
+        {d.status !== "installing" && (
+          <button
+            disabled={busy}
+            title="Cancel and delete the downloaded data"
+            onClick={() => confirm("Cancel and delete the downloaded data?") && a.remove.mutate(d.id)}
+            className={`${btn} ml-auto px-2.5 text-zinc-500 hover:bg-red-500/10 hover:text-red-300`}
+          >
+            <IconTrash />
+          </button>
+        )}
+      </div>
     </Card>
   );
 }

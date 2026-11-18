@@ -44,6 +44,7 @@ export type Download = {
   error: string;
   createdAt: string;
   updatedAt: string;
+  blobs?: { digest: string; mediaType: string; size: number; downloaded: number; done: boolean }[];
   live: {
     active: boolean;
     phase: string;

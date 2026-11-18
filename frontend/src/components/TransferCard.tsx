@@ -30,11 +30,12 @@ export default function TransferCard({ p }: { p: TransferPackage }) {
   const btn = "inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition disabled:opacity-50";
 
   return (
-    <Card className="p-5">
-      <div className="mb-5 flex items-center gap-3">
-        <ModelAvatar name={p.models[0]?.name.split(":")[0] ?? p.name} size="sm" />
+    <Card className="relative overflow-hidden p-5 sm:p-6">
+      <div className="pointer-events-none absolute -top-20 -right-20 size-56 rounded-full bg-indigo-500/[0.08] blur-3xl" />
+      <div className="relative mb-5 flex items-start gap-4">
+        <ModelAvatar name={p.models[0]?.name.split(":")[0] ?? p.name} />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 truncate font-semibold tracking-tight">
+          <div className="flex items-center gap-2 truncate text-lg font-semibold tracking-tight">
             <IconUsb className="shrink-0 text-zinc-500" /> <span className="truncate">{title}</span>
           </div>
           <div className="truncate font-mono text-[11px] text-zinc-500" title={p.path}>{p.path}</div>
@@ -46,7 +47,7 @@ export default function TransferCard({ p }: { p: TransferPackage }) {
       </div>
 
       {p.status !== "invalid" && (
-        <>
+        <div className="relative">
           <ProgressBar value={progress} active={busy || p.status === "copying"} tone={p.status === "error" ? "red" : p.status === "copying" ? "amber" : p.status === "installed" ? "zinc" : "emerald"} />
           <div className="mt-2 text-xs text-zinc-500">
             {p.status === "copying" && `${formatBytes(p.presentBytes)} of ${formatBytes(p.totalBytes)} copied — waiting for the rest of the files`}
@@ -56,7 +57,7 @@ export default function TransferCard({ p }: { p: TransferPackage }) {
             {p.status === "installed" && `${formatBytes(p.totalBytes)} — this computer already has this model`}
             {p.status === "error" && formatBytes(p.totalBytes)}
           </div>
-        </>
+        </div>
       )}
 
       {p.error && (
@@ -66,7 +67,7 @@ export default function TransferCard({ p }: { p: TransferPackage }) {
         </div>
       )}
 
-      <div className="mt-4 flex flex-wrap justify-end gap-2">
+      <div className="relative mt-5 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-4">
         {canInstall && (
           <button
             disabled={a.install.isPending}
@@ -84,7 +85,7 @@ export default function TransferCard({ p }: { p: TransferPackage }) {
             disabled={a.remove.isPending}
             title="Delete this folder"
             onClick={() => confirm(`Delete the folder ${p.path}?${p.status === "installed" ? " The installed model stays in Ollama." : ""}`) && a.remove.mutate(p.name)}
-            className={`${btn} px-2.5 text-zinc-500 hover:bg-red-500/10 hover:text-red-300`}
+            className={`${btn} ml-auto px-2.5 text-zinc-500 hover:bg-red-500/10 hover:text-red-300`}
           >
             <IconTrash />
           </button>

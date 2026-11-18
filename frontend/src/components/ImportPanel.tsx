@@ -97,7 +97,7 @@ export default function ImportPanel({ dir }: { dir?: string }) {
   const btn = "inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition disabled:opacity-50";
 
   return (
-    <Card className="p-5">
+    <Card className="relative overflow-hidden border-dashed p-5 sm:p-6">
       <div className="flex flex-wrap items-start gap-4">
         <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-indigo-500/10 text-lg text-indigo-300 ring-1 ring-inset ring-indigo-500/20">
           <IconUsb />
@@ -127,7 +127,7 @@ export default function ImportPanel({ dir }: { dir?: string }) {
           <ProgressBar value={upload.total ? upload.done / upload.total : 0} active />
         </div>
       ) : (
-        <div className="mt-4 flex flex-wrap justify-end gap-2">
+        <div className="mt-5 flex flex-wrap gap-2 border-t border-white/[0.06] pt-4">
           <button disabled={a.openDir.isPending} onClick={() => a.openDir.mutate()} className={`${btn} border border-white/10 bg-white/5 hover:bg-white/10`}>
             <IconFolder /> {isMac ? "Open in Finder" : "Open folder"}
           </button>
