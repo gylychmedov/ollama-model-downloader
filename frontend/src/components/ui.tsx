@@ -18,12 +18,12 @@ function hash(s: string) {
   return Math.abs(h);
 }
 
-export function ModelAvatar({ name, size = "md" }: { name: string; size?: "sm" | "md" | "lg" }) {
+export function ModelAvatar({ name, size = "md" }: { name: string; size?: "sm" | "md" | "lg" | "xl" }) {
   const short = name.split("/").pop() ?? name;
   const letters = short.replace(/[^a-zA-Z0-9]/g, "").slice(0, 2).toUpperCase();
-  const dims = { sm: "size-9 text-xs rounded-lg", md: "size-11 text-sm rounded-xl", lg: "size-16 text-xl rounded-2xl" }[size];
+  const dims = { sm: "size-9 text-xs rounded-lg", md: "size-11 text-sm rounded-xl", lg: "size-16 text-xl rounded-2xl", xl: "size-20 text-2xl rounded-3xl sm:size-24 sm:text-3xl" }[size];
   return (
-    <div className={`grid shrink-0 place-items-center bg-gradient-to-br font-bold text-white shadow-lg shadow-black/30 ring-1 ring-white/20 ${dims} ${gradients[hash(short) % gradients.length]}`}>
+    <div className={`grid shrink-0 place-items-center bg-gradient-to-br font-bold text-[#fff] shadow-lg shadow-black/30 ring-1 ring-white/20 ${dims} ${gradients[hash(short) % gradients.length]}`}>
       {letters}
     </div>
   );
@@ -38,10 +38,11 @@ const capStyles: Record<string, { cls: string; icon: ReactNode }> = {
   audio: { cls: "bg-rose-500/10 text-rose-300 ring-rose-500/20", icon: <IconMic /> },
 };
 
-export function CapabilityBadge({ cap }: { cap: string }) {
+export function CapabilityBadge({ cap, large }: { cap: string; large?: boolean }) {
   const s = capStyles[cap] ?? { cls: "bg-zinc-500/10 text-zinc-300 ring-zinc-500/20", icon: <IconBolt /> };
+  const dims = large ? "gap-1.5 px-3 py-1 text-sm" : "gap-1 px-2 py-0.5 text-[11px]";
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${s.cls}`}>
+    <span className={`inline-flex items-center rounded-full font-medium ring-1 ring-inset ${dims} ${s.cls}`}>
       {s.icon}
       {cap}
     </span>
