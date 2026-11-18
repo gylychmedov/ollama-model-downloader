@@ -131,7 +131,7 @@ export default function ImportPanel({ dir }: { dir?: string }) {
           <button disabled={a.openDir.isPending} onClick={() => a.openDir.mutate()} className={`${btn} border border-white/10 bg-white/5 hover:bg-white/10`}>
             <IconFolder /> {isMac ? "Open in Finder" : "Open folder"}
           </button>
-          <button onClick={() => input.current?.click()} className={`${btn} bg-indigo-500 text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-400`}>
+          <button onClick={() => input.current?.click()} className={`${btn} bg-indigo-500 text-[#fff] shadow-lg shadow-indigo-500/20 hover:bg-indigo-400`}>
             <IconUpload /> Choose folder…
           </button>
         </div>

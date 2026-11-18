@@ -93,7 +93,7 @@ export default function DownloadCard({ d, compact }: { d: Download; compact?: bo
         </button>
       )}
       {(d.status === "paused" || d.status === "error") && (
-        <button disabled={busy} onClick={() => a.resume.mutate(d.id)} className={`${btn} bg-sky-500 text-white shadow-lg shadow-sky-500/20 hover:bg-sky-400`}>
+        <button disabled={busy} onClick={() => a.resume.mutate(d.id)} className={`${btn} bg-sky-500 text-[#fff] shadow-lg shadow-sky-500/20 hover:bg-sky-400`}>
           <IconPlay /> Resume
         </button>
       )}
