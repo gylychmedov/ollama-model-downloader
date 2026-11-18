@@ -8,7 +8,8 @@ import InstalledModelPage from "./pages/InstalledModelPage";
 import DashboardPage from "./pages/DashboardPage";
 import { useDownloads, useInstalled, useTransfers } from "./lib/hooks";
 import { formatBytes } from "./lib/format";
-import { IconBox, IconDownload, IconGauge, IconGrid } from "./components/icons";
+import { IconBox, IconDownload, IconGauge, IconGrid, IconMoon, IconSun } from "./components/icons";
+import { useTheme } from "./lib/theme";
 
 function Header() {
   const { data } = useDownloads();
@@ -18,6 +19,7 @@ function Header() {
   const active = data?.filter((d) => d.status === "downloading") ?? [];
   const ready = (data?.filter((d) => d.status === "completed").length ?? 0) + readyImports;
   const speed = active.reduce((s, d) => s + (d.live?.speed ?? 0), 0);
+  const { theme, toggle } = useTheme();
 
   const tab = ({ isActive }: { isActive: boolean }) =>
     `relative flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition ${
@@ -49,12 +51,12 @@ function Header() {
         className={`relative mx-auto flex items-center justify-between gap-4 overflow-hidden border backdrop-blur-xl ${ease} ${
           scrolled
             ? "h-14 max-w-4xl rounded-full border-white/10 bg-zinc-900/75 px-3 shadow-2xl shadow-black/50"
-            : "h-16 max-w-7xl rounded-none border-transparent bg-transparent px-1 sm:px-3"
+            : "h-16 max-w-full rounded-none border-transparent bg-transparent px-1 sm:px-3 lg:px-7"
         }`}
       >
         <NavLink to="/" className="flex items-center gap-3">
           <div
-            className={`grid place-items-center bg-gradient-to-br from-emerald-400 to-teal-600 text-white shadow-lg shadow-emerald-500/30 ring-1 ring-white/20 ${ease} ${
+            className={`grid place-items-center bg-gradient-to-br from-emerald-400 to-teal-600 text-[#fff] shadow-lg shadow-emerald-500/30 ring-1 ring-white/20 ${ease} ${
               scrolled ? "size-8 rounded-full text-base" : "size-9 rounded-xl text-lg"
             }`}
           >
@@ -106,6 +108,13 @@ function Header() {
           >
             <IconBox /> {installed?.length ?? 0}<span className="hidden sm:inline"> installed</span>
           </NavLink>
+          <button
+            onClick={toggle}
+            title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+            className="grid size-8 place-items-center rounded-full border border-white/[0.08] bg-white/[0.03] text-zinc-400 transition hover:border-white/20 hover:text-white"
+          >
+            {theme === "light" ? <IconMoon /> : <IconSun />}
+          </button>
         </div>
 
         <div
