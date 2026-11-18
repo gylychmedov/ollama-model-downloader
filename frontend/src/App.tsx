@@ -136,7 +136,7 @@ export default function App() {
         <div className="absolute inset-0 bg-[radial-gradient(rgba(255,255,255,0.04)_1px,transparent_1px)] [background-size:24px_24px]" />
       </div>
       <Header />
-      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      <main className="w-full px-4 py-10 sm:px-6 lg:px-10">
         <Routes>
           <Route path="/" element={<LibraryPage />} />
           <Route path="/m/:ns/:name" element={<ModelPage />} />
