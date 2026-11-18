@@ -15,10 +15,12 @@ import (
 	"github.com/dagdan/ai-model-downloader/internal/config"
 	"github.com/dagdan/ai-model-downloader/internal/downloader"
 	"github.com/dagdan/ai-model-downloader/internal/library"
+	"github.com/dagdan/ai-model-downloader/internal/ollama"
 	"github.com/dagdan/ai-model-downloader/internal/registry"
 	"github.com/dagdan/ai-model-downloader/internal/reveal"
 	"github.com/dagdan/ai-model-downloader/internal/store"
 	"github.com/dagdan/ai-model-downloader/internal/transfer"
+	"github.com/dagdan/ai-model-downloader/internal/usage"
 )
 
 func main() {
@@ -47,6 +49,7 @@ func main() {
 
 	lib := library.New(cfg.OllamaWebURL, st)
 	go lib.Prewarm(ctx)
+	go usage.Track(ctx, ollama.New(cfg.OllamaURL), st)
 	srv := &http.Server{Addr: cfg.Addr, Handler: api.New(cfg, st, lib, reg, mgr, tr, rv), BaseContext: func(net.Listener) context.Context { return ctx }}
 	go func() {
 		log.Printf("listening on %s (models dir %s)", cfg.Addr, cfg.ModelsDir)

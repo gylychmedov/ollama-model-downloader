@@ -83,7 +83,16 @@ CREATE TABLE IF NOT EXISTS library_cache (
 	key        TEXT PRIMARY KEY,
 	data       JSONB NOT NULL,
 	fetched_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);`
+);
+CREATE TABLE IF NOT EXISTS model_usage (
+	name      TEXT PRIMARY KEY,
+	last_used TIMESTAMPTZ NOT NULL
+);
+CREATE TABLE IF NOT EXISTS usage_tracking (
+	id         BOOLEAN PRIMARY KEY DEFAULT true,
+	started_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO usage_tracking DEFAULT VALUES ON CONFLICT DO NOTHING;`
 
 func Open(ctx context.Context, url string) (*Store, error) {
 	var pool *pgxpool.Pool
@@ -247,4 +256,37 @@ func (s *Store) CacheGet(ctx context.Context, key string) ([]byte, time.Time, bo
 func (s *Store) CacheSet(ctx context.Context, key string, data []byte) {
 	_, _ = s.pool.Exec(ctx, `INSERT INTO library_cache (key, data) VALUES ($1,$2)
 		ON CONFLICT (key) DO UPDATE SET data = EXCLUDED.data, fetched_at = now()`, key, data)
+}
+
+// TouchUsage records that these models (namespace/model:tag) are in use now.
+func (s *Store) TouchUsage(ctx context.Context, names []string) error {
+	if len(names) == 0 {
+		return nil
+	}
+	_, err := s.pool.Exec(ctx, `INSERT INTO model_usage (name, last_used) SELECT unnest($1::text[]), now()
+		ON CONFLICT (name) DO UPDATE SET last_used = EXCLUDED.last_used`, names)
+	return err
+}
+
+// Usage returns when each model was last seen loaded, and since when usage has been tracked.
+func (s *Store) Usage(ctx context.Context) (map[string]time.Time, time.Time, error) {
+	var since time.Time
+	if err := s.pool.QueryRow(ctx, `SELECT started_at FROM usage_tracking`).Scan(&since); err != nil {
+		return nil, since, err
+	}
+	rows, err := s.pool.Query(ctx, `SELECT name, last_used FROM model_usage`)
+	if err != nil {
+		return nil, since, err
+	}
+	defer rows.Close()
+	out := map[string]time.Time{}
+	for rows.Next() {
+		var name string
+		var at time.Time
+		if err := rows.Scan(&name, &at); err != nil {
+			return nil, since, err
+		}
+		out[name] = at
+	}
+	return out, since, rows.Err()
 }
