@@ -13,6 +13,7 @@ Resumable downloader and installer for Ollama models, built for unstable connect
 - **Verified install** — every blob is checked with sha256, then installed into Ollama's store so `ollama run` works right away
 - **Model library** — see installed models with size, family, quantization and architecture, and delete ones you no longer need
 - **Notifications** — a browser or macOS notification when a download finishes, fails or gets installed, and an option to install into Ollama automatically
+- **Try a model** — send one prompt to an installed model from the app and see the answer stream in, with time to first token, tokens per second, prompt speed and load time
 - **Disk cleanup** — lists leftover staging folders, blobs no model uses and models you haven't run in a while, shows how much space each frees, and removes the selected ones in one click
 - **Dashboard** — host CPU, memory and disk, Ollama status and loaded models
 - **Move models between computers** — export a model to a folder, copy it on a USB drive, and install it on another machine
@@ -73,6 +74,7 @@ cd frontend && npm install && npm run dev  # :3471, proxies /api to :8470
 | DELETE | `/api/installed?model=&tag=` | Deletes a model and the blobs no other model or pending download uses |
 | GET | `/api/cleanup?days=30` | Reclaimable items: unfinished downloads, orphaned blobs, and models unused for `days` |
 | POST | `/api/cleanup` | `{"ids":["blob:sha256:…"],"days":30}`, deletes the items that are still eligible after a fresh scan |
+| POST | `/api/chat` | `{"model":"library/gemma3","tag":"27b","prompt":"…"}`, streams NDJSON events: `token`, `thinking`, then `done` with timings, or `error` |
 | GET | `/api/dashboard` | Host CPU, memory and disk, Ollama status, storage used and installed models |
 | POST | `/api/installed/export` | `{"model":"library/gemma3","tag":"27b"}`, prepares a transfer folder and reveals it |
 | GET | `/api/transfers` | Transfer folder path and the model folders in it |
