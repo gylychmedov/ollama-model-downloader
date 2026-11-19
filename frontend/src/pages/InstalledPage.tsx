@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { displayName, exportName, type InstalledModel, type TransferPackage } from "../lib/api";
+import { chatHref, displayName, exportName, type InstalledModel, type TransferPackage } from "../lib/api";
 import { formatBytes } from "../lib/format";
 import { useCheckUpdates, useDashboard, useInstalledModels, useTransferActions, useTransfers, useUpdates } from "../lib/hooks";
 import { fitStyles, memoryFit, paramBillions } from "../lib/insights";
@@ -16,6 +16,7 @@ import {
   IconBox,
   IconCheck,
   IconChevronDown,
+  IconChat,
   IconCopy,
   IconDisk,
   IconFolder,
@@ -173,6 +174,7 @@ function ModelCard({ m, pkg, share, memoryTotal, loaded }: { m: InstalledModel; 
       <div className="h-5 shrink-0" />
       <div className="relative mt-auto flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-4">
         <UpdateButton model={m.model} tag={m.tag} />
+        <Link to={chatHref(m.model, m.tag)} className={ghost}><IconChat /> Try</Link>
         <Link to={href} className={ghost}>Details <IconArrowRight /></Link>
         <button
           disabled={preparing}

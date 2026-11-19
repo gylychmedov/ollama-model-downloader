@@ -252,3 +252,46 @@ export function uploadTransferFile(pkg: string, path: string, file: File, onProg
 export const exportName = (model: string, tag: string) => `${model.replace(/^library\//, "").replaceAll("/", "-")}-${tag}`;
 
 export const displayName = (model: string) => model.replace(/^library\//, "");
+
+export type ChatStats = {
+  firstTokenMs: number;
+  totalMs: number;
+  loadMs: number;
+  promptTokens: number;
+  promptMs: number;
+  outputTokens: number;
+  outputMs: number;
+  tokensPerSec: number;
+  promptPerSec: number;
+  doneReason: string;
+};
+
+export type ChatEvent =
+  | { type: "token" | "thinking"; text: string }
+  | { type: "done"; stats: ChatStats }
+  | { type: "error"; error: string };
+
+export async function streamChat(model: string, tag: string, prompt: string, onEvent: (e: ChatEvent) => void, signal: AbortSignal) {
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model, tag, prompt }),
+    signal,
+  });
+  if (!res.ok || !res.body) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? res.statusText);
+  }
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buf = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += value;
+    const lines = buf.split("\n");
+    buf = lines.pop() ?? "";
+    for (const line of lines) if (line.trim()) onEvent(JSON.parse(line));
+  }
+}
+
+export const chatHref = (model: string, tag: string) => `/chat?model=${encodeURIComponent(model)}&tag=${encodeURIComponent(tag)}`;

@@ -7,9 +7,10 @@ import InstalledPage from "./pages/InstalledPage";
 import InstalledModelPage from "./pages/InstalledModelPage";
 import DashboardPage from "./pages/DashboardPage";
 import CleanupPage from "./pages/CleanupPage";
+import ChatPage from "./pages/ChatPage";
 import { useDownloads, useInstalled, useTransfers } from "./lib/hooks";
 import { formatBytes } from "./lib/format";
-import { IconBox, IconDownload, IconGauge, IconGrid, IconMoon, IconSun } from "./components/icons";
+import { IconBox, IconChat, IconDownload, IconGauge, IconGrid, IconMoon, IconSun } from "./components/icons";
 import { useTheme } from "./lib/theme";
 import { useDownloadNotifications } from "./lib/notifications";
 
@@ -78,6 +79,9 @@ function Header() {
           </NavLink>
           <NavLink to="/dashboard" className={tab}>
             <IconGauge /> <span className="hidden sm:inline">Dashboard</span>
+          </NavLink>
+          <NavLink to="/chat" className={tab}>
+            <IconChat /> <span className="hidden sm:inline">Try</span>
           </NavLink>
           <NavLink to="/downloads" className={tab}>
             <IconDownload /> Downloads
@@ -148,6 +152,7 @@ export default function App() {
           <Route path="/installed/:ns/:name/:tag" element={<InstalledModelPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/cleanup" element={<CleanupPage />} />
+          <Route path="/chat" element={<ChatPage />} />
         </Routes>
       </main>
     </div>
